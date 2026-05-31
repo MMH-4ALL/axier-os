@@ -79,10 +79,12 @@ export default function TopBar() {
     <div
       className="fixed top-0 left-0 right-0 h-7 z-50 flex items-center justify-between px-3 text-xs"
       style={{
-        background: `${currentTheme.colors.surface}E6`,
-        backdropFilter: 'blur(20px)',
-        borderBottom: `1px solid ${currentTheme.colors.border}40`,
+        background: 'rgba(10, 10, 22, 0.48)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
         color: currentTheme.colors.text,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
     >
       {/* Left - Menus */}
@@ -100,8 +102,7 @@ export default function TopBar() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMenu(null)} />
                 <div
-                  className="absolute top-full left-0 mt-0.5 py-1 rounded-lg shadow-xl z-50 min-w-[160px]"
-                  style={{ background: currentTheme.colors.surface, border: `1px solid ${currentTheme.colors.border}` }}
+                  className="absolute top-full left-0 mt-1 py-1 rounded-xl glass-menu z-50 min-w-[160px]"
                 >
                   {items.map((item, idx) =>
                     item.separator ? (
@@ -184,10 +185,8 @@ export default function TopBar() {
             {/* Calendar Popup */}
             {showCalendar && (
               <div
-                className="absolute top-full right-0 mt-1 rounded-xl shadow-2xl z-50 p-3 select-none"
+                className="absolute top-full right-0 mt-1 rounded-2xl glass-card z-50 p-4 select-none"
                 style={{
-                  background: currentTheme.colors.surface,
-                  border: `1px solid ${currentTheme.colors.border}`,
                   width: '220px',
                 }}
               >
@@ -267,10 +266,9 @@ export default function TopBar() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)} />
           <div
-            className="absolute top-full right-0 mt-1 py-2 rounded-xl shadow-2xl z-50 w-80 max-h-96 overflow-y-auto"
-            style={{ background: currentTheme.colors.surface, border: `1px solid ${currentTheme.colors.border}` }}
+            className="absolute top-full right-0 mt-1 py-3 rounded-2xl glass-modal z-50 w-80 max-h-96 overflow-y-auto"
           >
-            <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider opacity-50" style={{ borderBottom: `1px solid ${currentTheme.colors.border}` }}>
+            <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
               Notifications
             </div>
             {state.notifications.length === 0 ? (

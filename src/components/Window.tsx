@@ -154,9 +154,6 @@ export default function WindowComponent({ window: win }: Props) {
     ? { top: 28, left: 0, width: '100%', height: 'calc(100% - 28px)', zIndex: win.zIndex }
     : { top: win.position.y, left: win.position.x, width: win.size.width, height: win.size.height, zIndex: win.zIndex };
 
-  const titleBarBg = win.isFocused
-    ? currentTheme.colors.surface
-    : currentTheme.colors.surfaceAlt;
 
   const renderApp = () => {
     switch (win.appId) {
@@ -192,8 +189,13 @@ export default function WindowComponent({ window: win }: Props) {
         } ${isDragging ? 'cursor-grabbing' : ''}`}
         style={{
           ...windowStyle,
-          background: currentTheme.colors.background,
-          border: `1px solid ${win.isFocused ? currentTheme.colors.primary + '40' : currentTheme.colors.border}`,
+          background: 'rgba(10, 10, 22, 0.56)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: `1px solid ${win.isFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)'}`,
+          boxShadow: win.isFocused
+            ? '0 16px 64px rgba(0,0,0,0.64), 0 4px 16px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.10)'
+            : '0 4px 16px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
           transition: isDragging || isResizing ? 'none' : 'box-shadow 0.2s, border-color 0.2s',
         }}
         onMouseDown={handleMouseDown}
@@ -202,7 +204,12 @@ export default function WindowComponent({ window: win }: Props) {
         {/* Title Bar */}
         <div
           className="window-titlebar flex items-center justify-between px-3 py-2 select-none cursor-grab active:cursor-grabbing"
-          style={{ background: titleBarBg, borderBottom: `1px solid ${currentTheme.colors.border}` }}
+          style={{
+            background: win.isFocused ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: `1px solid rgba(255,255,255,0.07)`,
+          }}
         >
           <div className="flex items-center gap-2">
             {/* Window Controls */}
@@ -279,24 +286,21 @@ export default function WindowComponent({ window: win }: Props) {
       {/* Right-Click Context Menu */}
       {contextMenu && (
         <div
-          className="fixed z-[9999] py-1 rounded-lg shadow-2xl"
+          className="fixed z-[9999] py-1 rounded-xl glass-menu"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
-            background: currentTheme.colors.surface,
-            border: `1px solid ${currentTheme.colors.border}`,
             minWidth: '160px',
           }}
           onClick={e => e.stopPropagation()}
         >
           {contextItems.map((item, i) =>
             item.separator ? (
-              <div key={i} className="my-1 border-t" style={{ borderColor: currentTheme.colors.border }} />
+              <div key={i} className="my-1 border-t border-white/10" />
             ) : (
               <button
                 key={i}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center gap-2"
-                style={{ color: currentTheme.colors.text }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center gap-2 text-white/80"
                 onClick={() => { item.action?.(); setContextMenu(null); }}
               >
                 {item.label}

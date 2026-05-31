@@ -21,9 +21,11 @@ export default function Dock() {
   return (
     <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl"
       style={{
-        background: `${currentTheme.colors.surface}CC`,
-        backdropFilter: 'blur(20px)',
-        border: `1px solid ${currentTheme.colors.border}60`,
+        background: 'rgba(10, 10, 22, 0.42)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)',
       }}
     >
       {dockApps.map((appId, idx) => {
@@ -42,8 +44,7 @@ export default function Dock() {
             onClick={() => openApp(appId)}
           >
             {/* Tooltip */}
-            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
-              style={{ background: currentTheme.colors.surfaceAlt, color: currentTheme.colors.text }}>
+            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 rounded-lg text-xs whitespace-nowrap pointer-events-none glass-menu">
               {app.name}
             </div>
 

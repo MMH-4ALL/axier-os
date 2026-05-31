@@ -80,25 +80,21 @@ export default function Desktop() {
       {/* Right-click Context Menu */}
       {contextMenu && (
         <div
-          className="fixed z-[9999] py-1 rounded-xl shadow-2xl"
+          className="fixed z-[9999] py-1 rounded-xl glass-menu"
           style={{
             left: Math.min(contextMenu.x, window.innerWidth - 200),
             top: Math.min(contextMenu.y, window.innerHeight - 320),
-            background: `${currentTheme.colors.surface}E6`,
-            backdropFilter: 'blur(20px)',
-            border: `1px solid ${currentTheme.colors.border}`,
             minWidth: '180px',
           }}
           onClick={e => e.stopPropagation()}
         >
           {desktopCtxItems.map((item, i) =>
             item.separator ? (
-              <div key={i} className="my-1 border-t" style={{ borderColor: `${currentTheme.colors.border}60` }} />
+              <div key={i} className="my-1 border-t border-white/10" />
             ) : (
               <button
                 key={i}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center gap-2"
-                style={{ color: currentTheme.colors.text }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center gap-2 text-white/80"
                 onClick={() => { item.action?.(); setContextMenu(null); }}
               >
                 {item.label}
