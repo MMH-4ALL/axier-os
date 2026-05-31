@@ -362,8 +362,8 @@ export default function Terminal({ windowId: _windowId }: Props) {
         combined.push({ type: 'output', content: '' });
         combined.push({ type: 'ascii', content: ' '.repeat(30) + colors.map(c => `\x1b[48;2;${hexToRgb(c)}m   \x1b[0m`).join('') });
 
-        setTypingEffect(true);
-        setTypingLines(combined);
+        // Add all at once — no typing animation (typing effect causes white flash)
+        setLines(prev => [...prev, ...combined]);
         break;
       }
 
