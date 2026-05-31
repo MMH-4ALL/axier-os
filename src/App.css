@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=VT323&display=swap');
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'VT323', 'Courier New', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* CRT Scanline Effect */
+.crt-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  opacity: 0.03;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border, #4c566a);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary, #88c0d0);
+}
+
+/* Terminal Cursor Animations */
+@keyframes blink-block {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes blink-line {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes blink-underline {
+  0%, 49% { border-bottom-color: currentColor; }
+  50%, 100% { border-bottom-color: transparent; }
+}
+
+.cursor-block {
+  animation: blink-block 1.2s step-end infinite;
+}
+.cursor-line {
+  animation: blink-line 1.2s step-end infinite;
+  width: 2px;
+  height: 1.2em;
+  display: inline-block;
+  vertical-align: text-bottom;
+}
+.cursor-underline {
+  border-bottom: 2px solid currentColor;
+  animation: blink-underline 1.2s step-end infinite;
+}
+
+/* Matrix Rain */
+@keyframes matrix-fall {
+  0% { transform: translateY(-100%); opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* Boot Animations */
+@keyframes boot-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes boot-flicker {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  20% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 1; }
+}
+.boot-pulse {
+  animation: boot-pulse 2s ease-in-out infinite;
+}
+.boot-flicker {
+  animation: boot-flicker 0.5s ease-out forwards;
+}
+
+/* Window Animations */
+@keyframes window-open {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes window-close {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+@keyframes window-minimize {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.5) translateY(300px); }
+}
+
+.window-enter {
+  animation: window-open 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.window-exit {
+  animation: window-close 0.2s ease-in forwards;
+}
+
+/* Sound wave animation for music player */
+@keyframes sound-wave {
+  0%, 100% { height: 4px; }
+  50% { height: 20px; }
+}
+
+/* Notification slide in */
+@keyframes notif-slide {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.notif-enter {
+  animation: notif-slide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Dock bounce */
+@keyframes dock-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
