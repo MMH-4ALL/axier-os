@@ -19,6 +19,9 @@ export interface WindowState {
   isFocused: boolean;
   zIndex: number;
   data?: Record<string, unknown>;
+  /** Hidden fields for window snap restore */
+  _prevPosition?: Position;
+  _prevSize?: Size;
 }
 
 export interface AppDefinition {

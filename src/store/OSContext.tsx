@@ -90,6 +90,7 @@ type OSAction =
   | { type: 'FOCUS_WINDOW'; windowId: string }
   | { type: 'MOVE_WINDOW'; windowId: string; position: { x: number; y: number } }
   | { type: 'RESIZE_WINDOW'; windowId: string; size: { width: number; height: number } }
+  | { type: 'SNAP_WINDOW'; windowId: string; edge: 'left' | 'right' | 'restore' }
   | { type: 'SET_VIEW'; view: DesktopView }
   | { type: 'ADD_NOTIFICATION'; notification: Notification }
   | { type: 'READ_NOTIFICATION'; id: string }
@@ -213,6 +214,41 @@ function osReducer(state: OSState, action: OSAction): OSState {
           w.id === action.windowId ? { ...w, isMaximized: false, isMinimized: false } : w
         ),
       };
+    case 'SNAP_WINDOW': {
+      const win = state.windows.find(w => w.id === action.windowId);
+      if (!win) return state;
+      const topBarH = 28;
+      if (action.edge === 'restore') {
+        return {
+          ...state,
+          windows: state.windows.map(w =>
+            w.id === action.windowId
+              ? { ...w, isMaximized: false, isMinimized: false, position: w._prevPosition || win.position, size: w._prevSize || win.size }
+              : w
+          ),
+        };
+      }
+      const halfW = Math.floor((window.innerWidth - 4) / 2);
+      if (action.edge === 'left') {
+        return {
+          ...state,
+          windows: state.windows.map(w =>
+            w.id === action.windowId
+              ? { ...w, isMaximized: false, isMinimized: false, _prevPosition: win.position, _prevSize: win.size, position: { x: 0, y: topBarH }, size: { width: halfW, height: window.innerHeight - topBarH } }
+              : w
+          ),
+        };
+      }
+      // right
+      return {
+        ...state,
+        windows: state.windows.map(w =>
+          w.id === action.windowId
+            ? { ...w, isMaximized: false, isMinimized: false, _prevPosition: win.position, _prevSize: win.size, position: { x: halfW + 2, y: topBarH }, size: { width: halfW, height: window.innerHeight - topBarH } }
+            : w
+        ),
+      };
+    }
     case 'FOCUS_WINDOW':
       return {
         ...state,
