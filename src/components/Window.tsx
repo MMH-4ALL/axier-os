@@ -26,19 +26,31 @@ export default function WindowComponent({ window: win }: Props) {
   const [isResizing, setIsResizing] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const windowRef = useRef<HTMLDivElement>(null);
+  // True right after a snap — prevents re-snap until user drags far enough away
+  const justSnappedRef = useRef(false);
+  const snapPosRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   const app = apps.find(a => a.id === win.appId);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.window-titlebar')) {
+      // If maximized, drag away restores it
+      if (win.isMaximized) {
+        const titleBarH = 36;
+        dispatch({ type: 'RESTORE_WINDOW', windowId: win.id });
+        // Will position correctly on first mouse-move
+        setDragOffset({ x: e.clientX - 100, y: e.clientY - titleBarH });
+      } else {
+        setDragOffset({
+          x: e.clientX - win.position.x,
+          y: e.clientY - win.position.y,
+        });
+      }
       setIsDragging(true);
-      setDragOffset({
-        x: e.clientX - win.position.x,
-        y: e.clientY - win.position.y,
-      });
+      justSnappedRef.current = false;
     }
     focusWindow(win.id);
-  }, [win.position, win.id, focusWindow]);
+  }, [win.position, win.id, win.isMaximized, focusWindow, dispatch]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -64,20 +76,41 @@ export default function WindowComponent({ window: win }: Props) {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
-        const SNAP_THRESHOLD = 40;
+        const SNAP_THRESHOLD = 50;
         const topBarH = 28;
         const ww = window.innerWidth;
         const wh = window.innerHeight;
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
+        // If we're in just-snapped mode, check if user dragged far enough to "escape" the snap
+        if (justSnappedRef.current) {
+          const sx = snapPosRef.current.x;
+          const sy = snapPosRef.current.y;
+          const dist = Math.sqrt((newX - sx) ** 2 + (newY - sy) ** 2);
+          if (dist > 40) {
+            justSnappedRef.current = false;
+          } else {
+            // Still within snap zone — just track normally but don't re-snap
+            const clampedX = Math.max(0, Math.min(newX, ww - win.size.width));
+            const clampedY = Math.max(topBarH, Math.min(newY, wh - 10));
+            dispatch({ type: 'MOVE_WINDOW', windowId: win.id, position: { x: clampedX, y: clampedY } });
+            return;
+          }
+        }
+
         // Snap to edges
         if (newX < SNAP_THRESHOLD && newX > -10) {
+          snapPosRef.current = { x: 0, y: topBarH, w: Math.floor((ww - 4) / 2), h: wh - topBarH };
+          justSnappedRef.current = true;
           dispatch({ type: 'SNAP_WINDOW', windowId: win.id, edge: 'left' });
           setIsDragging(false);
           return;
         }
         if (newX + win.size.width > ww - SNAP_THRESHOLD && newX + win.size.width < ww + 10) {
+          const halfW = Math.floor((ww - 4) / 2);
+          snapPosRef.current = { x: halfW + 2, y: topBarH, w: halfW, h: wh - topBarH };
+          justSnappedRef.current = true;
           dispatch({ type: 'SNAP_WINDOW', windowId: win.id, edge: 'right' });
           setIsDragging(false);
           return;
