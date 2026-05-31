@@ -641,7 +641,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
       onClick={() => inputRef.current?.focus()}
     >
       {/* Terminal output */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-2" style={{ wordBreak: 'break-word' }}>
         {/* Welcome message */}
         {lines.length === 0 && (
           <div className="mb-2 opacity-60">
@@ -651,7 +651,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
         )}
 
         {lines.map((line, idx) => (
-          <div key={idx} className="whitespace-pre-wrap break-all leading-tight"
+          <div key={idx} className="whitespace-pre leading-tight overflow-hidden"
             style={{
               color: line.type === 'error' ? termTheme.red :
                 line.type === 'ascii' ? termTheme.cyan :
