@@ -2,6 +2,12 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect } 
 import type { WindowState, AppDefinition, Notification, FileSystemNode, Package, Note, OSSettings, DesktopView } from '@/types';
 import { themes, wallpapers } from '@/themes';
 
+export interface ClipboardItem {
+  id: string;
+  text: string;
+  timestamp: number;
+}
+
 const APPS: AppDefinition[] = [
   { id: 'terminal', name: 'Terminal', icon: 'terminal', category: 'system', defaultSize: { width: 750, height: 480 }, minSize: { width: 400, height: 300 }, canResize: true },
   { id: 'files', name: 'File Manager', icon: 'folder', category: 'system', defaultSize: { width: 800, height: 500 }, minSize: { width: 500, height: 350 }, canResize: true },
@@ -23,7 +29,7 @@ const DEFAULT_FS: FileSystemNode[] = [
   { id: 'downloads', name: 'Downloads', type: 'folder', parentId: 'user', createdAt: new Date().toISOString() },
   { id: 'desktop', name: 'Desktop', type: 'folder', parentId: 'user', createdAt: new Date().toISOString() },
   { id: 'readme', name: 'README.txt', type: 'file', parentId: 'user', content: 'Welcome to Axier OS!\n\nThis is a web-based operating system.\nExplore the terminal and built-in applications.\n\nType "help" in the terminal for available commands.\n\n---\nAxier OS v1.0', createdAt: new Date().toISOString(), size: 128, mimeType: 'text/plain' },
-  { id: 'welcome', name: 'Welcome.md', type: 'file', parentId: 'docs', content: '# Welcome to Axier OS\n\nAxier OS is a futuristic, Linux-inspired web operating system.\n\n## Features\n- Full terminal emulator\n- Window manager\n- File system\n- Multiple themes\n- Built-in applications\n\n## Getting Started\nOpen the Terminal app and type `help` to see available commands.\n\n## Themes\nAxier OS supports multiple themes including:\n- Axier Default\n- Nord\n- Dracula\n- Catppuccin\n- Retro Terminal\n\nEnjoy exploring!', createdAt: new Date().toISOString(), size: 256, mimeType: 'text/markdown' },
+  { id: 'welcome', name: 'Welcome.md', type: 'file', parentId: 'docs', content: '# Welcome to Axier OS\n\nAxier OS is a futuristic, Linux-inspired web operating system.\n\n## Features\n- Full terminal emulator\n- Window manager\n- File system\n- Multiple themes\n- Built-in applications\n\n## Getting Started\nOpen the Terminal app and type `help` to see available commands.', createdAt: new Date().toISOString(), size: 256, mimeType: 'text/markdown' },
   { id: 'todo', name: 'todo.txt', type: 'file', parentId: 'docs', content: '- [ ] Explore the terminal\n- [ ] Change the wallpaper\n- [ ] Install packages from the store\n- [ ] Try different themes\n- [ ] Find the easter eggs', createdAt: new Date().toISOString(), size: 96, mimeType: 'text/plain' },
   { id: 'sys', name: 'sys', type: 'folder', parentId: 'root', createdAt: new Date().toISOString() },
   { id: 'bin', name: 'bin', type: 'folder', parentId: 'root', createdAt: new Date().toISOString() },
@@ -43,13 +49,13 @@ const DEFAULT_PACKAGES: Package[] = [
   { id: 'node', name: 'nodejs', description: 'JavaScript runtime', version: '18.15.0', category: 'Development', installed: false, size: '32.4 MB' },
   { id: 'python', name: 'python3', description: 'Python programming language', version: '3.11.2', category: 'Development', installed: true, size: '24.8 MB' },
   { id: 'docker', name: 'docker', description: 'Container platform', version: '23.0.1', category: 'Development', installed: false, size: '85.2 MB' },
-  { id: 'ffmpeg', name: 'ffmpeg', description: ' Multimedia framework', version: '6.0', category: 'Media', installed: false, size: '12.6 MB' },
+  { id: 'ffmpeg', name: 'ffmpeg', description: 'Multimedia framework', version: '6.0', category: 'Media', installed: false, size: '12.6 MB' },
   { id: 'sl', name: 'sl', description: 'Steam locomotive animation', version: '5.02', category: 'Fun', installed: false, size: '23 KB' },
 ];
 
 const DEFAULT_NOTES: Note[] = [
-  { id: 'note-1', title: 'Quick Notes', content: '# Quick Notes\n\n- Welcome to Axier OS Notes!\n- This app supports **Markdown**\n- Create, edit, and organize your notes\n\n## Tips\n- Use `#` for headings\n- Use `**bold**` for emphasis\n- Use `-` for lists', updatedAt: new Date().toISOString() },
-  { id: 'note-2', title: 'Terminal Commands', content: '# Useful Commands\n\n| Command | Description |\n|---------|-------------|\n| `neofetch` | Show system info |\n| `help` | List all commands |\n| `ls` | List files |\n| `cd` | Change directory |\n| `cat` | View file contents |\n| `axpkg` | Package manager |\n| `cmatrix` | Matrix rain |\n| `htop` | Process viewer |', updatedAt: new Date().toISOString() },
+  { id: 'note-1', title: 'Quick Notes', content: '# Quick Notes\n\n- Welcome to Axier OS Notes!\n- This app supports **Markdown**\n- Create, edit, and organize your notes', updatedAt: new Date().toISOString() },
+  { id: 'note-2', title: 'Terminal Commands', content: '# Useful Commands\n\n| Command | Description |\n|---------|-------------|\n| `neofetch` | Show system info |\n| `help` | List all commands |\n| `ls` | List files |', updatedAt: new Date().toISOString() },
 ];
 
 const DEFAULT_SETTINGS: OSSettings = {
@@ -66,7 +72,13 @@ const DEFAULT_SETTINGS: OSSettings = {
   animations: true,
 };
 
-interface OSState {
+export interface VirtualDesktop {
+  id: string;
+  name: string;
+  bg: string;
+}
+
+export interface OSState {
   view: DesktopView;
   windows: WindowState[];
   activeWindowId: string | null;
@@ -79,6 +91,16 @@ interface OSState {
   settings: OSSettings;
   secretThemeUnlocked: boolean;
   bootPhase: number;
+  clipboard: ClipboardItem[];
+  showVolumeHUD: boolean;
+  showBrightnessHUD: boolean;
+  volume: number;
+  brightness: number;
+  spotlightOpen: boolean;
+  spotlightQuery: string;
+  virtualDesktops: VirtualDesktop[];
+  activeDesktop: string;
+  calculatorOpen: boolean;
 }
 
 type OSAction =
@@ -108,7 +130,24 @@ type OSAction =
   | { type: 'UPDATE_SETTINGS'; settings: Partial<OSSettings> }
   | { type: 'UNLOCK_SECRET_THEME' }
   | { type: 'SET_BOOT_PHASE'; phase: number }
-  | { type: 'RESTORE_STATE'; state: Partial<OSState> };
+  | { type: 'RESTORE_STATE'; state: Partial<OSState> }
+  | { type: 'COPY_TO_CLIPBOARD'; text: string }
+  | { type: 'CLEAR_CLIPBOARD' }
+  | { type: 'SET_VOLUME'; volume: number }
+  | { type: 'SET_BRIGHTNESS'; brightness: number }
+  | { type: 'SHOW_VOLUME_HUD' }
+  | { type: 'HIDE_VOLUME_HUD' }
+  | { type: 'SHOW_BRIGHTNESS_HUD' }
+  | { type: 'HIDE_BRIGHTNESS_HUD' }
+  | { type: 'OPEN_SPOTLIGHT' }
+  | { type: 'CLOSE_SPOTLIGHT' }
+  | { type: 'SET_SPOTLIGHT_QUERY'; query: string }
+  | { type: 'ADD_VIRTUAL_DESKTOP'; desktop: VirtualDesktop }
+  | { type: 'REMOVE_VIRTUAL_DESKTOP'; id: string }
+  | { type: 'SWITCH_DESKTOP'; id: string }
+  | { type: 'RENAME_VIRTUAL_DESKTOP'; id: string; name: string }
+  | { type: 'TOGGLE_CALCULATOR' }
+  | { type: 'RESTORE_WINDOWS'; windows: WindowState[] };
 
 function loadSavedState(): Partial<OSState> {
   try {
@@ -121,6 +160,12 @@ function loadSavedState(): Partial<OSState> {
         packages: parsed.packages || DEFAULT_PACKAGES,
         notes: parsed.notes || DEFAULT_NOTES,
         secretThemeUnlocked: parsed.secretThemeUnlocked || false,
+        windows: parsed.windows || [],
+        clipboard: parsed.clipboard || [],
+        volume: parsed.volume ?? 70,
+        brightness: parsed.brightness ?? 100,
+        virtualDesktops: parsed.virtualDesktops || DEFAULT_VIRTUAL_DESKTOPS,
+        activeDesktop: parsed.activeDesktop || 'desktop-1',
       };
     }
   } catch { /* ignore */ }
@@ -130,14 +175,25 @@ function loadSavedState(): Partial<OSState> {
     packages: DEFAULT_PACKAGES,
     notes: DEFAULT_NOTES,
     secretThemeUnlocked: false,
+    windows: [],
+    clipboard: [],
+    volume: 70,
+    brightness: 100,
+    virtualDesktops: DEFAULT_VIRTUAL_DESKTOPS,
+    activeDesktop: 'desktop-1',
   };
 }
+
+const DEFAULT_VIRTUAL_DESKTOPS: VirtualDesktop[] = [
+  { id: 'desktop-1', name: 'Main', bg: '#0a0a1a' },
+  { id: 'desktop-2', name: 'Work', bg: '#1a0a2e' },
+];
 
 function createInitialState(): OSState {
   const saved = loadSavedState();
   return {
     view: 'boot',
-    windows: [],
+    windows: saved.windows as OSState['windows'] || [],
     activeWindowId: null,
     nextZIndex: 100,
     notifications: [],
@@ -148,6 +204,16 @@ function createInitialState(): OSState {
     settings: { ...DEFAULT_SETTINGS, ...(saved.settings || {}) },
     secretThemeUnlocked: saved.secretThemeUnlocked || false,
     bootPhase: 0,
+    clipboard: saved.clipboard as ClipboardItem[] || [],
+    showVolumeHUD: false,
+    showBrightnessHUD: false,
+    volume: saved.volume as number ?? 70,
+    brightness: saved.brightness as number ?? 100,
+    spotlightOpen: false,
+    spotlightQuery: '',
+    virtualDesktops: saved.virtualDesktops as VirtualDesktop[] || DEFAULT_VIRTUAL_DESKTOPS,
+    activeDesktop: saved.activeDesktop as string || 'desktop-1',
+    calculatorOpen: false,
   };
 }
 
@@ -239,7 +305,6 @@ function osReducer(state: OSState, action: OSAction): OSState {
           ),
         };
       }
-      // right
       return {
         ...state,
         windows: state.windows.map(w =>
@@ -336,6 +401,59 @@ function osReducer(state: OSState, action: OSAction): OSState {
       return { ...state, bootPhase: action.phase };
     case 'RESTORE_STATE':
       return { ...state, ...action.state };
+    case 'COPY_TO_CLIPBOARD': {
+      const item: ClipboardItem = { id: `clip-${Date.now()}`, text: action.text, timestamp: Date.now() };
+      return { ...state, clipboard: [item, ...state.clipboard].slice(0, 20) };
+    }
+    case 'CLEAR_CLIPBOARD':
+      return { ...state, clipboard: [] };
+    case 'SET_VOLUME':
+      return { ...state, volume: Math.max(0, Math.min(100, action.volume)) };
+    case 'SET_BRIGHTNESS':
+      return { ...state, brightness: Math.max(10, Math.min(100, action.brightness)) };
+    case 'SHOW_VOLUME_HUD':
+      return { ...state, showVolumeHUD: true };
+    case 'HIDE_VOLUME_HUD':
+      return { ...state, showVolumeHUD: false };
+    case 'SHOW_BRIGHTNESS_HUD':
+      return { ...state, showBrightnessHUD: true };
+    case 'HIDE_BRIGHTNESS_HUD':
+      return { ...state, showBrightnessHUD: false };
+    case 'OPEN_SPOTLIGHT':
+      return { ...state, spotlightOpen: true, spotlightQuery: '' };
+    case 'CLOSE_SPOTLIGHT':
+      return { ...state, spotlightOpen: false, spotlightQuery: '' };
+    case 'SET_SPOTLIGHT_QUERY':
+      return { ...state, spotlightQuery: action.query };
+    case 'ADD_VIRTUAL_DESKTOP':
+      return {
+        ...state,
+        virtualDesktops: [...state.virtualDesktops, action.desktop],
+      };
+    case 'REMOVE_VIRTUAL_DESKTOP':
+      if (state.virtualDesktops.length <= 1) return state;
+      const removeIdx = state.virtualDesktops.findIndex(d => d.id === action.id);
+      const newDesktops = state.virtualDesktops.filter(d => d.id !== action.id);
+      return {
+        ...state,
+        virtualDesktops: newDesktops,
+        activeDesktop: state.activeDesktop === action.id
+          ? newDesktops[Math.max(0, removeIdx - 1)].id
+          : state.activeDesktop,
+      };
+    case 'SWITCH_DESKTOP':
+      return { ...state, activeDesktop: action.id };
+    case 'RENAME_VIRTUAL_DESKTOP':
+      return {
+        ...state,
+        virtualDesktops: state.virtualDesktops.map(d =>
+          d.id === action.id ? { ...d, name: action.name } : d
+        ),
+      };
+    case 'TOGGLE_CALCULATOR':
+      return { ...state, calculatorOpen: !state.calculatorOpen };
+    case 'RESTORE_WINDOWS':
+      return { ...state, windows: action.windows };
     default:
       return state;
   }
@@ -349,6 +467,7 @@ interface OSContextType {
   closeWindow: (windowId: string) => void;
   focusWindow: (windowId: string) => void;
   sendNotification: (title: string, message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
+  copyToClipboard: (text: string) => void;
   currentTheme: typeof themes[keyof typeof themes];
 }
 
@@ -359,6 +478,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
 
   const currentTheme = themes[state.settings.theme] || themes.axier;
 
+  // Persist state to localStorage
   useEffect(() => {
     const toSave = {
       settings: state.settings,
@@ -366,9 +486,15 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       packages: state.packages,
       notes: state.notes,
       secretThemeUnlocked: state.secretThemeUnlocked,
+      windows: state.windows,
+      clipboard: state.clipboard,
+      volume: state.volume,
+      brightness: state.brightness,
+      virtualDesktops: state.virtualDesktops,
+      activeDesktop: state.activeDesktop,
     };
     localStorage.setItem('axier-os-state', JSON.stringify(toSave));
-  }, [state.settings, state.fs, state.packages, state.notes, state.secretThemeUnlocked]);
+  }, [state.settings, state.fs, state.packages, state.notes, state.secretThemeUnlocked, state.windows, state.clipboard, state.volume, state.brightness, state.virtualDesktops, state.activeDesktop]);
 
   const openApp = useCallback((appId: string, data?: Record<string, unknown>) => {
     dispatch({ type: 'OPEN_APP', appId, data });
@@ -394,8 +520,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'ADD_NOTIFICATION', notification });
   }, []);
 
+  const copyToClipboard = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    dispatch({ type: 'COPY_TO_CLIPBOARD', text });
+  }, []);
+
   return (
-    <OSContext.Provider value={{ state, dispatch, apps: APPS, openApp, closeWindow, focusWindow, sendNotification, currentTheme }}>
+    <OSContext.Provider value={{ state, dispatch, apps: APPS, openApp, closeWindow, focusWindow, sendNotification, copyToClipboard, currentTheme }}>
       {children}
     </OSContext.Provider>
   );
