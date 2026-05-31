@@ -1,10 +1,10 @@
 import { OSProvider, useOS } from '@/store/OSContext';
 import LockScreen from '@/components/LockScreen';
 import Desktop from '@/components/Desktop';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
 
-// New overlay components
+// Overlay components
 import SpotlightSearch from '@/components/ui/SpotlightSearch';
 import Calculator from '@/components/ui/Calculator';
 import VolumeHUD from '@/components/ui/VolumeHUD';
@@ -12,9 +12,13 @@ import ClipboardHUD from '@/components/ui/ClipboardHUD';
 import SystemMonitor from '@/components/ui/SystemMonitor';
 import WeatherWidget from '@/components/ui/WeatherWidget';
 import VirtualDesktopBar from '@/components/ui/VirtualDesktopBar';
+import MiniMusicPlayer from '@/components/ui/MiniMusicPlayer';
+import EmojiPicker from '@/components/ui/EmojiPicker';
+import SnakeGame from '@/components/ui/SnakeGame';
 
 function AxierOS() {
   const { state, dispatch } = useOS();
+  const [snakeOpen, setSnakeOpen] = useState(false);
 
   // Skip boot — go straight to lock screen
   useEffect(() => {
@@ -22,6 +26,17 @@ function AxierOS() {
       dispatch({ type: 'SET_VIEW', view: 'lock' });
     }
   }, [state.view, dispatch]);
+
+  // Close snake on window close dispatch (watch for snake-specific close)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (snakeOpen && e.key === 'Escape') {
+        setSnakeOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [snakeOpen]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -34,24 +49,34 @@ function AxierOS() {
         dispatch({ type: state.spotlightOpen ? 'CLOSE_SPOTLIGHT' : 'OPEN_SPOTLIGHT' });
       }
 
-      // Calculator: Cmd/Ctrl+Shift+C
-      if (meta && e.shiftKey && e.key === 'C') {
-        e.preventDefault();
-        dispatch({ type: 'TOGGLE_CALCULATOR' });
-      }
-
       // Calculator: Alt+C
       if (!meta && e.altKey && e.key === 'c') {
         e.preventDefault();
         dispatch({ type: 'TOGGLE_CALCULATOR' });
       }
 
-      // Volume keys (on laptops / some keyboards)
-      if (e.key === 'AudioVolUp' || (meta && e.key === 'ArrowUp' && e.shiftKey)) {
+      // Emoji Picker: Cmd/Ctrl+Shift+E
+      if (meta && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        dispatch({ type: 'CLOSE_SPOTLIGHT' });
+        // Emoji picker is controlled by a separate open state
+        // We use a data attribute approach: emojiPickerOpen in state
+        // For now, dispatch a custom event
+        window.dispatchEvent(new CustomEvent('axier:emoji-picker'));
+      }
+
+      // Snake: Cmd/Ctrl+Shift+S
+      if (meta && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        setSnakeOpen(true);
+      }
+
+      // Volume keys
+      if (e.key === 'AudioVolUp') {
         dispatch({ type: 'SET_VOLUME', volume: Math.min(100, state.volume + 5) });
         dispatch({ type: 'SHOW_VOLUME_HUD' });
       }
-      if (e.key === 'AudioVolDown' || (meta && e.key === 'ArrowDown' && e.shiftKey)) {
+      if (e.key === 'AudioVolDown') {
         dispatch({ type: 'SET_VOLUME', volume: Math.max(0, state.volume - 5) });
         dispatch({ type: 'SHOW_VOLUME_HUD' });
       }
@@ -77,7 +102,7 @@ function AxierOS() {
 
       {state.view === 'desktop' && <Desktop />}
 
-      {/* Overlays — always mounted on desktop */}
+      {/* Overlays */}
       {state.view === 'desktop' && (
         <>
           <SpotlightSearch />
@@ -89,10 +114,26 @@ function AxierOS() {
           <SystemMonitor />
           <WeatherWidget />
           <VirtualDesktopBar />
+          <MiniMusicPlayer />
+          <EmojiPickerTrigger />
+          {snakeOpen && <SnakeGame onClose={() => setSnakeOpen(false)} />}
         </>
       )}
     </div>
   );
+}
+
+function EmojiPickerTrigger() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('axier:emoji-picker', handler);
+    return () => window.removeEventListener('axier:emoji-picker', handler);
+  }, []);
+
+  if (!open) return null;
+  return <EmojiPicker onClose={() => setOpen(false)} />;
 }
 
 export default function App() {

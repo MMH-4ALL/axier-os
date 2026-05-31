@@ -589,6 +589,25 @@ export default function Terminal({ windowId: _windowId }: Props) {
         break;
       }
 
+      case 'sudo': {
+        if (args[1] === 'rm' && args[2] === '-rf' && args[3] === '/') {
+          addOutputs(['', '  root@axier-os:~# sudo rm -rf /', '  root password:']);
+          setTimeout(() => {
+            addOutputs(['', '  [██████████████████████████████] 100%', '', '  Deleting /bin...', '  Deleting /usr...', '  Deleting /home...', '  Deleting /etc/passwd...', '  Deleting everything...']);
+            setTimeout(() => {
+              addOutputs(['', '  ╔══════════════════════════════════════╗', '  ║  😂 NICE TRY. THIS IS A WEB OS 😂  ║', '  ║  Your file system is completely    ║', '  ║  safe... this time. 👀            ║', '  ╚══════════════════════════════════════╝', '', '  Nice try. Nothing was deleted.', '  (The NSA is NOT impressed.)', '']);
+              sendNotification('Security Notice', 'Someone tried `sudo rm -rf /` in Terminal 😂', 'warning');
+            }, 1200);
+          }, 800);
+        } else if (args[1] === 'rm') {
+          addOutput('rm: cannot remove \'/\': Permission denied');
+        } else {
+          addOutput(`sudo: ${args.slice(1).join(' ')}: command requires root privileges`);
+          addOutput('This incident has been logged. 📋');
+        }
+        break;
+      }
+
       default:
         addOutput(`${cmd}: command not found. Type 'help' for available commands.`, 'error');
     }
