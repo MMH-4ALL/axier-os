@@ -46,29 +46,34 @@ export default function VirtualDesktopBar() {
       {state.virtualDesktops.map(d => (
         <div key={d.id} className="relative group flex items-center">
           <button
-            className="w-8 h-1.5 rounded-full transition-all flex items-center justify-center"
+            className="w-10 h-5 rounded-md transition-all flex items-center justify-center -m-1 p-1"
             style={{
-              background: state.activeDesktop === d.id ? '#7aa2f7' : 'rgba(255,255,255,0.20)',
+              background: state.activeDesktop === d.id ? '#7aa2f7' : 'rgba(255,255,255,0.08)',
               boxShadow: state.activeDesktop === d.id ? '0 0 8px rgba(122,162,247,0.6)' : 'none',
             }}
             onClick={() => dispatch({ type: 'SWITCH_DESKTOP', id: d.id })}
             title={d.name}
-          />
+          >
+            {/* Inner dot */}
+            <div className="w-6 h-1.5 rounded-full" style={{
+              background: state.activeDesktop === d.id ? '#ffffff' : 'rgba(255,255,255,0.50)',
+            }} />
+          </button>
 
           {/* Tooltip on hover */}
-          <div className="absolute bottom-full mb-2 left-1/2 hidden group-hover:flex flex-col items-center gap-1 pointer-events-none">
+          <div className="absolute bottom-full left-1/2 hidden group-hover:flex flex-col items-center gap-0.5" style={{ transform: 'translateX(-50%)', marginBottom: '4px' }}>
             <div
-              className="px-2 py-1 rounded-lg text-xs whitespace-nowrap"
+              className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap"
               style={{
-                background: 'rgba(8, 8, 18, 0.92)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                color: 'rgba(255,255,255,0.80)',
-                transform: 'translateX(-50%)',
+                background: 'rgba(255, 255, 255, 0.95)',
+                color: '#0f1117',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
               }}
             >
               {editing === d.id ? (
                 <input
-                  className="bg-transparent outline-none w-16 text-xs text-center text-white"
+                  className="bg-transparent outline-none w-20 text-xs text-center font-medium"
+                  style={{ color: '#0f1117' }}
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   onBlur={() => commitEdit(d.id)}
@@ -80,16 +85,16 @@ export default function VirtualDesktopBar() {
             {/* Action buttons */}
             <div className="flex gap-1">
               <button
-                className="w-5 h-5 rounded text-[8px] flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.6)' }}
+                className="w-6 h-6 rounded-md text-[11px] flex items-center justify-center hover:bg-white/15 transition-colors cursor-pointer pointer-events-auto"
+                style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
                 onClick={(e) => { e.stopPropagation(); startEdit(d.id, d.name); }}
               >
                 ✎
               </button>
               {state.virtualDesktops.length > 1 && (
                 <button
-                  className="w-5 h-5 rounded text-[8px] flex items-center justify-center"
-                  style={{ background: 'rgba(239,68,68,0.20)', color: 'rgba(239,68,68,0.8)' }}
+                  className="w-6 h-6 rounded-md text-[11px] flex items-center justify-center hover:bg-red-500/30 transition-colors cursor-pointer pointer-events-auto"
+                  style={{ background: 'rgba(239,68,68,0.25)', color: 'rgba(248,113,113,0.9)' }}
                   onClick={(e) => { e.stopPropagation(); removeDesktop(d.id); }}
                 >
                   ×
