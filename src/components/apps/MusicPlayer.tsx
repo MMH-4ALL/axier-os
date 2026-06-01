@@ -215,19 +215,27 @@ export default function MusicPlayer({ windowId: _windowId }: Props) {
   return (
     <div className="w-full h-full flex flex-col" style={{ background: currentTheme.colors.background, color: currentTheme.colors.text }}>
       {/* Tab switcher */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor: currentTheme.colors.border }}>
+      <div className="flex border-b flex-shrink-0 gap-1 px-3 pt-2" style={{ borderColor: currentTheme.colors.border }}>
         <button
           onClick={() => setTab('local')}
-          className="flex-1 py-2 text-xs font-medium transition-colors"
-          style={{ color: tab === 'local' ? currentTheme.colors.primary : currentTheme.colors.textSecondary, borderBottom: tab === 'local' ? `2px solid ${currentTheme.colors.primary}` : '2px solid transparent' }}>
-          Library
+          className="flex-1 py-1.5 px-4 text-xs font-semibold rounded-t-lg transition-all"
+          style={{
+            color: tab === 'local' ? '#fff' : currentTheme.colors.textSecondary,
+            background: tab === 'local' ? currentTheme.colors.primary + '25' : 'transparent',
+            borderBottom: tab === 'local' ? `2px solid ${currentTheme.colors.primary}` : '2px solid transparent',
+          }}>
+          🎵 Library
         </button>
         <button
           onClick={() => setTab('spotify')}
-          className="flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
-          style={{ color: tab === 'spotify' ? '#1DB954' : currentTheme.colors.textSecondary, borderBottom: tab === 'spotify' ? '2px solid #1DB954' : '2px solid transparent' }}>
-          Spotify
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#1DB954' }} />
+          className="flex-1 py-1.5 px-4 text-xs font-semibold rounded-t-lg transition-all flex items-center justify-center gap-1.5"
+          style={{
+            color: tab === 'spotify' ? '#fff' : currentTheme.colors.textSecondary,
+            background: tab === 'spotify' ? '#1DB95425' : 'transparent',
+            borderBottom: tab === 'spotify' ? '2px solid #1DB954' : '2px solid transparent',
+          }}>
+          🎧 Spotify
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#1DB954' }} />
         </button>
       </div>
 
