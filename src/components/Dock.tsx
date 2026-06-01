@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useOS } from '@/store/OSContext';
 
 const dockApps = ['terminal', 'files', 'browser', 'editor', 'notes', 'music', 'settings', 'store'];
 
 export default function Dock() {
-  const { state, openApp, apps, currentTheme } = useOS();
+  const { state, openApp, apps, currentTheme, dispatch } = useOS();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [previewAppId, setPreviewAppId] = useState<string | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getScale = (idx: number) => {
     if (hoveredIdx === null) return 1;
@@ -16,55 +18,125 @@ export default function Dock() {
     return 1;
   };
 
+  const handleMouseEnter = (idx: number, appId: string) => {
+    setHoveredIdx(idx);
+    hoverTimer.current = setTimeout(() => {
+      setPreviewAppId(appId);
+    }, 500);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIdx(null);
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    setPreviewAppId(null);
+  };
+
   const openWindows = state.windows.filter(w => !w.isMinimized);
 
+  const handleIconClick = (appId: string) => {
+    // Clear badge when opening app
+    dispatch({ type: 'CLEAR_APP_BADGE', appId });
+    openApp(appId);
+  };
+
+  const accent = currentTheme.colors.accent || '#7aa2f7';
+
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl"
+    <div
+      className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl transition-all duration-300 ease-out ${state.visibleWidgets?.virtualDesktopBar ? 'bottom-12' : 'bottom-3'}`}
       style={{
-        background: `${currentTheme.colors.surface}CC`,
-        backdropFilter: 'blur(20px)',
-        border: `1px solid ${currentTheme.colors.border}60`,
+        background: 'rgba(10, 10, 22, 0.42)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)',
       }}
     >
       {dockApps.map((appId, idx) => {
         const app = apps.find(a => a.id === appId);
         if (!app) return null;
         const hasWindow = openWindows.some(w => w.appId === appId);
+        const appWindows = state.windows.filter(w => w.appId === appId);
+        const unreadCount = state.appUnreadCounts[appId] || 0;
         const scale = getScale(idx);
 
         return (
-          <button
-            key={appId}
-            className="relative flex flex-col items-center group transition-transform duration-200 ease-out"
-            style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}
-            onMouseEnter={() => setHoveredIdx(idx)}
-            onMouseLeave={() => setHoveredIdx(null)}
-            onClick={() => openApp(appId)}
-          >
-            {/* Tooltip */}
-            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
-              style={{ background: currentTheme.colors.surfaceAlt, color: currentTheme.colors.text }}>
-              {app.name}
-            </div>
+          <div key={appId} className="relative flex flex-col items-center">
+            {/* Hover preview tooltip */}
+            {previewAppId === appId && appWindows.length > 0 && (
+              <div
+                className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 flex gap-1.5 p-2 rounded-xl whitespace-nowrap"
+                style={{
+                  background: 'rgba(10,10,22,0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  zIndex: 60,
+                }}
+              >
+                {appWindows.map(w => (
+                  <div
+                    key={w.id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{
+                      background: w.isFocused ? `${accent}33` : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${w.isFocused ? accent : 'rgba(255,255,255,0.08)'}`,
+                      color: w.isFocused ? '#fff' : 'rgba(255,255,255,0.7)',
+                    }}
+                  >
+                    {w.title}
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Icon */}
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
-              style={{
-                background: hasWindow ? `${currentTheme.colors.primary}25` : `${currentTheme.colors.surfaceAlt}80`,
-                border: `1px solid ${hasWindow ? currentTheme.colors.primary + '40' : 'transparent'}`,
-              }}
+            <button
+              className="relative flex flex-col items-center group transition-transform duration-200 ease-out"
+              style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}
+              onMouseEnter={() => handleMouseEnter(idx, appId)}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => handleIconClick(appId)}
             >
-              <AppIcon appId={appId} color={hasWindow ? currentTheme.colors.primary : currentTheme.colors.textSecondary} size={20} />
-            </div>
+              {/* Tooltip */}
+              <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap pointer-events-none z-50"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  color: '#0f1117',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                }}
+              >
+                {app.name}
+              </div>
 
-            {/* Indicator dot */}
-            <div className="mt-1 w-1 h-1 rounded-full transition-all"
-              style={{
-                background: hasWindow ? currentTheme.colors.primary : 'transparent',
-                transform: hasWindow ? 'scale(1)' : 'scale(0)',
-              }}
-            />
-          </button>
+              {/* Icon */}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                style={{
+                  background: hasWindow ? `${currentTheme.colors.primary}25` : `${currentTheme.colors.surfaceAlt}80`,
+                  border: `1px solid ${hasWindow ? currentTheme.colors.primary + '40' : 'transparent'}`,
+                }}
+              >
+                <AppIcon appId={appId} color={hasWindow ? '#ffffff' : 'rgba(255,255,255,0.85)'} size={22} />
+
+                {/* Notification badge */}
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] flex items-center justify-center font-bold"
+                    style={{ background: '#ef4444', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+
+              {/* Indicator dot */}
+              <div className="mt-1 w-1 h-1 rounded-full transition-all"
+                style={{
+                  background: hasWindow ? currentTheme.colors.primary : 'transparent',
+                  transform: hasWindow ? 'scale(1)' : 'scale(0)',
+                }}
+              />
+            </button>
+          </div>
         );
       })}
     </div>
