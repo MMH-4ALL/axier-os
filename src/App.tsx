@@ -17,7 +17,7 @@ import EmojiPicker from '@/components/ui/EmojiPicker';
 import SnakeGame from '@/components/ui/SnakeGame';
 
 function AxierOS() {
-  const { state, dispatch } = useOS();
+  const { state, dispatch, setNoBootScreen } = useOS();
   const [snakeOpen, setSnakeOpen] = useState(false);
 
   // Skip boot — go straight to lock screen
@@ -101,15 +101,26 @@ function AxierOS() {
       if (e.key === 'Escape') {
         if (state.spotlightOpen) dispatch({ type: 'CLOSE_SPOTLIGHT' });
         else if (state.calculatorOpen) dispatch({ type: 'TOGGLE_CALCULATOR' });
+        else if (state.noBootScreen) setNoBootScreen(false);
+      }
+
+      // Shift+8 — recover from no-boot screen (hidden in plain sight: * = Shift+8)
+      if (e.shiftKey && e.key === '8') {
+        e.preventDefault();
+        setNoBootScreen(false);
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [dispatch, state.spotlightOpen, state.calculatorOpen, state.volume]);
+  }, [dispatch, state.spotlightOpen, state.calculatorOpen, state.volume, state.noBootScreen, setNoBootScreen]);
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-black relative select-none">
+      {state.noBootScreen && (
+        <div className="fixed inset-0 z-[99999]" style={{ background: '#000000' }} />
+      )}
+
       {(state.view === 'boot' || state.view === 'lock') && <LockScreen />}
 
       {state.view === 'desktop' && <Desktop />}

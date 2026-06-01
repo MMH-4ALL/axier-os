@@ -102,6 +102,7 @@ export interface OSState {
   activeDesktop: string;
   visibleWidgets: Record<string, boolean>;
   calculatorOpen: boolean;
+  noBootScreen: boolean;
 }
 
 type OSAction =
@@ -149,7 +150,8 @@ type OSAction =
   | { type: 'TOGGLE_WIDGET'; widget: string }
   | { type: 'RENAME_VIRTUAL_DESKTOP'; id: string; name: string }
   | { type: 'TOGGLE_CALCULATOR' }
-  | { type: 'RESTORE_WINDOWS'; windows: WindowState[] };
+  | { type: 'RESTORE_WINDOWS'; windows: WindowState[] }
+  | { type: 'SET_NO_BOOT_SCREEN'; value: boolean };
 
 function loadSavedState(): Partial<OSState> {
   try {
@@ -218,6 +220,7 @@ function createInitialState(): OSState {
     activeDesktop: saved.activeDesktop as string || 'desktop-1',
     visibleWidgets: { weather: true, virtualDesktopBar: true },
     calculatorOpen: false,
+    noBootScreen: false,
   };
 }
 
@@ -464,6 +467,8 @@ function osReducer(state: OSState, action: OSAction): OSState {
       return { ...state, calculatorOpen: !state.calculatorOpen };
     case 'RESTORE_WINDOWS':
       return { ...state, windows: action.windows };
+    case 'SET_NO_BOOT_SCREEN':
+      return { ...state, noBootScreen: action.value };
     default:
       return state;
   }
@@ -479,6 +484,7 @@ interface OSContextType {
   sendNotification: (title: string, message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   copyToClipboard: (text: string) => void;
   currentTheme: typeof themes[keyof typeof themes];
+  setNoBootScreen: (value: boolean) => void;
 }
 
 const OSContext = createContext<OSContextType | null>(null);
@@ -535,8 +541,12 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'COPY_TO_CLIPBOARD', text });
   }, []);
 
+  const setNoBootScreen = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_NO_BOOT_SCREEN', value });
+  }, []);
+
   return (
-    <OSContext.Provider value={{ state, dispatch, apps: APPS, openApp, closeWindow, focusWindow, sendNotification, copyToClipboard, currentTheme }}>
+    <OSContext.Provider value={{ state, dispatch, apps: APPS, openApp, closeWindow, focusWindow, sendNotification, copyToClipboard, currentTheme, setNoBootScreen }}>
       {children}
     </OSContext.Provider>
   );

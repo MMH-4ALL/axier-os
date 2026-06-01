@@ -61,7 +61,7 @@ function makeFiglet(text: string): string[] {
 }
 
 export default function Terminal({ windowId: _windowId }: Props) {
-  const { state, dispatch, currentTheme, sendNotification } = useOS();
+  const { state, dispatch, currentTheme, sendNotification, setNoBootScreen } = useOS();
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -73,7 +73,6 @@ export default function Terminal({ windowId: _windowId }: Props) {
   const [cmatrixChars, setCmatrixChars] = useState<{ x: number; y: number; char: string; speed: number }[]>([]);
   const [typingEffect, setTypingEffect] = useState(false);
   const [typingLines, setTypingLines] = useState<TerminalLine[]>([]);
-  const [noBootScreen, setNoBootScreen] = useState(false);
   const [awaitingSecretWord, setAwaitingSecretWord] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -89,17 +88,6 @@ export default function Terminal({ windowId: _windowId }: Props) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  // Global listener for Shift+8 recovery from no-boot screen
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.shiftKey && e.key === '8' && noBootScreen) {
-        setNoBootScreen(false);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [noBootScreen]);
 
   // Typing effect for neofetch
   useEffect(() => {
@@ -215,7 +203,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
         ]);
         setTimeout(() => {
           setNoBootScreen(true);
-          sendNotification('💀 SYSTEM FAILURE', 'No boot device found. Press Shift+8 to recover.', 'error');
+          sendNotification('SYSTEM FAILURE', 'No boot device found.', 'error');
         }, 2000);
       }, 1000);
     } else {
@@ -699,7 +687,6 @@ export default function Terminal({ windowId: _windowId }: Props) {
   const prompt = awaitingSecretWord ? 'secret word > ' : `user@axier:${getDirName(currentDir)}$`;
 
   return (
-    <>
     <div
       className="w-full h-full flex flex-col relative"
       style={{
@@ -826,17 +813,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
         </div>
       )}
     </div>
-
-    {/* No boot found - black screen overlay */}
-    {noBootScreen && (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: '#000000' }}>
-        <div className="text-center font-mono">
-          <div className="text-red-600 text-xl tracking-widest mb-4 animate-pulse">NO BOOT DEVICE FOUND</div>
-          <div className="text-gray-700 text-sm">Press Shift+8 to attempt recovery...</div>
-        </div>
-      </div>
-    )}
-  </>);
+  );
 }
 
 function hexToRgb(hex: string): string {
