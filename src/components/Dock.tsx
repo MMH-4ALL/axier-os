@@ -19,13 +19,11 @@ export default function Dock() {
   const openWindows = state.windows.filter(w => !w.isMinimized);
 
   return (
-    <div className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl transition-all duration-300 ease-out ${state.visibleWidgets?.virtualDesktopBar ? 'bottom-12' : 'bottom-3'}`}
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl"
       style={{
-        background: 'rgba(10, 10, 22, 0.42)',
-        backdropFilter: 'blur(40px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)',
+        background: `${currentTheme.colors.surface}CC`,
+        backdropFilter: 'blur(20px)',
+        border: `1px solid ${currentTheme.colors.border}60`,
       }}
     >
       {dockApps.map((appId, idx) => {
@@ -44,24 +42,19 @@ export default function Dock() {
             onClick={() => openApp(appId)}
           >
             {/* Tooltip */}
-            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap pointer-events-none"
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                color: '#0f1117',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-              }}
-            >
+            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none"
+              style={{ background: currentTheme.colors.surfaceAlt, color: currentTheme.colors.text }}>
               {app.name}
             </div>
 
             {/* Icon */}
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
               style={{
                 background: hasWindow ? `${currentTheme.colors.primary}25` : `${currentTheme.colors.surfaceAlt}80`,
                 border: `1px solid ${hasWindow ? currentTheme.colors.primary + '40' : 'transparent'}`,
               }}
             >
-              <AppIcon appId={appId} color={hasWindow ? '#ffffff' : 'rgba(255,255,255,0.85)'} size={22} />
+              <AppIcon appId={appId} color={hasWindow ? currentTheme.colors.primary : currentTheme.colors.textSecondary} size={20} />
             </div>
 
             {/* Indicator dot */}
