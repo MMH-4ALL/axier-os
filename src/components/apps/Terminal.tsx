@@ -73,6 +73,8 @@ export default function Terminal({ windowId: _windowId }: Props) {
   const [cmatrixChars, setCmatrixChars] = useState<{ x: number; y: number; char: string; speed: number }[]>([]);
   const [typingEffect, setTypingEffect] = useState(false);
   const [typingLines, setTypingLines] = useState<TerminalLine[]>([]);
+  const [noBootScreen, setNoBootScreen] = useState(false);
+  const [awaitingSecretWord, setAwaitingSecretWord] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +89,17 @@ export default function Terminal({ windowId: _windowId }: Props) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Global listener for Shift+8 recovery from no-boot screen
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === '8' && noBootScreen) {
+        setNoBootScreen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [noBootScreen]);
 
   // Typing effect for neofetch
   useEffect(() => {
@@ -185,9 +198,50 @@ export default function Terminal({ windowId: _windowId }: Props) {
     return found?.id || null;
   };
 
+  const handleSecretWord = (word: string) => {
+    setAwaitingSecretWord(false);
+    if (word.toLowerCase() === 'please!') {
+      setLines(prev => [...prev, { type: 'output', content: '' }]);
+      setTimeout(() => {
+        setLines(prev => [...prev,
+          { type: 'error', content: '  [██████████████████████████████] 100%' },
+          { type: 'output', content: '' },
+          { type: 'error', content: '  Deleting /bin...' },
+          { type: 'error', content: '  Deleting /usr...' },
+          { type: 'error', content: '  Deleting /home...' },
+          { type: 'error', content: '  Deleting /etc/passwd...' },
+          { type: 'error', content: '  Deleting everything...' },
+          { type: 'output', content: '  ...' },
+        ]);
+        setTimeout(() => {
+          setNoBootScreen(true);
+          sendNotification('💀 SYSTEM FAILURE', 'No boot device found. Press Shift+8 to recover.', 'error');
+        }, 2000);
+      }, 1000);
+    } else {
+      setLines(prev => [...prev,
+        { type: 'output', content: '' },
+        { type: 'error', content: '  ❌ Incorrect. The system remains intact.' },
+        { type: 'output', content: '  (Nice try though.)' },
+        { type: 'output', content: '' },
+      ]);
+    }
+  };
+
   const executeCommand = useCallback((cmdStr: string) => {
     const trimmed = cmdStr.trim();
     if (!trimmed) return;
+
+    // Intercept secret word check
+    if (awaitingSecretWord) {
+      setHistory(prev => [...prev, trimmed]);
+      setHistoryIdx(-1);
+      setLines(prev => [...prev, { type: 'input', content: trimmed }]);
+      // Run as secret word check
+      handleSecretWord(trimmed);
+      setInput('');
+      return;
+    }
 
     setHistory(prev => [...prev, trimmed]);
     setHistoryIdx(-1);
@@ -591,14 +645,10 @@ export default function Terminal({ windowId: _windowId }: Props) {
 
       case 'sudo': {
         if (args[1] === 'rm' && args[2] === '-rf' && args[3] === '/') {
-          addOutputs(['', '  root@axier-os:~# sudo rm -rf /', '  root password:']);
-          setTimeout(() => {
-            addOutputs(['', '  [██████████████████████████████] 100%', '', '  Deleting /bin...', '  Deleting /usr...', '  Deleting /home...', '  Deleting /etc/passwd...', '  Deleting everything...']);
-            setTimeout(() => {
-              addOutputs(['', '  ╔══════════════════════════════════════╗', '  ║  😂 NICE TRY. THIS IS A WEB OS 😂  ║', '  ║  Your file system is completely    ║', '  ║  safe... this time. 👀            ║', '  ╚══════════════════════════════════════╝', '', '  Nice try. Nothing was deleted.', '  (The NSA is NOT impressed.)', '']);
-              sendNotification('Security Notice', 'Someone tried `sudo rm -rf /` in Terminal 😂', 'warning');
-            }, 1200);
-          }, 800);
+          setAwaitingSecretWord(true);
+          addOutputs(['', '  ⚠️ WARNING: This will destroy the entire filesystem.', '', '  What\'s the secret word?']);
+          // Next input will be checked as the secret word
+          return;
         } else if (args[1] === 'rm') {
           addOutput('rm: cannot remove \'/\': Permission denied');
         } else {
@@ -611,7 +661,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
       default:
         addOutput(`${cmd}: command not found. Type 'help' for available commands.`, 'error');
     }
-  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath]);
+  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath, awaitingSecretWord]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showMatrix || showHtop) {
@@ -646,9 +696,10 @@ export default function Terminal({ windowId: _windowId }: Props) {
     }
   };
 
-  const prompt = `user@axier:${getDirName(currentDir)}$`;
+  const prompt = awaitingSecretWord ? 'secret word > ' : `user@axier:${getDirName(currentDir)}$`;
 
   return (
+    <>
     <div
       className="w-full h-full flex flex-col relative"
       style={{
@@ -775,7 +826,17 @@ export default function Terminal({ windowId: _windowId }: Props) {
         </div>
       )}
     </div>
-  );
+
+    {/* No boot found - black screen overlay */}
+    {noBootScreen && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: '#000000' }}>
+        <div className="text-center font-mono">
+          <div className="text-red-600 text-xl tracking-widest mb-4 animate-pulse">NO BOOT DEVICE FOUND</div>
+          <div className="text-gray-700 text-sm">Press Shift+8 to attempt recovery...</div>
+        </div>
+      </div>
+    )}
+  </>);
 }
 
 function hexToRgb(hex: string): string {
