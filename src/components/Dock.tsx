@@ -19,7 +19,7 @@ export default function Dock() {
   const openWindows = state.windows.filter(w => !w.isMinimized);
 
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl"
+    <div className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-end gap-1 px-3 py-2 rounded-2xl transition-all duration-300 ease-out ${state.visibleWidgets?.virtualDesktopBar ? 'bottom-12' : 'bottom-3'}`}
       style={{
         background: 'rgba(10, 10, 22, 0.42)',
         backdropFilter: 'blur(40px) saturate(180%)',
