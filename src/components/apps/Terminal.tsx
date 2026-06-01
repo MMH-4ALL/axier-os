@@ -61,7 +61,7 @@ function makeFiglet(text: string): string[] {
 }
 
 export default function Terminal({ windowId: _windowId }: Props) {
-  const { state, dispatch, currentTheme, sendNotification, setNoBootScreen } = useOS();
+  const { state, dispatch, currentTheme, sendNotification } = useOS();
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -73,7 +73,6 @@ export default function Terminal({ windowId: _windowId }: Props) {
   const [cmatrixChars, setCmatrixChars] = useState<{ x: number; y: number; char: string; speed: number }[]>([]);
   const [typingEffect, setTypingEffect] = useState(false);
   const [typingLines, setTypingLines] = useState<TerminalLine[]>([]);
-  const [awaitingSecretWord, setAwaitingSecretWord] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -186,50 +185,9 @@ export default function Terminal({ windowId: _windowId }: Props) {
     return found?.id || null;
   };
 
-  const handleSecretWord = (word: string) => {
-    setAwaitingSecretWord(false);
-    if (word.toLowerCase() === 'please!') {
-      setLines(prev => [...prev, { type: 'output', content: '' }]);
-      setTimeout(() => {
-        setLines(prev => [...prev,
-          { type: 'error', content: '  [██████████████████████████████] 100%' },
-          { type: 'output', content: '' },
-          { type: 'error', content: '  Deleting /bin...' },
-          { type: 'error', content: '  Deleting /usr...' },
-          { type: 'error', content: '  Deleting /home...' },
-          { type: 'error', content: '  Deleting /etc/passwd...' },
-          { type: 'error', content: '  Deleting everything...' },
-          { type: 'output', content: '  ...' },
-        ]);
-        setTimeout(() => {
-          setNoBootScreen(true);
-          sendNotification('SYSTEM FAILURE', 'No boot device found.', 'error');
-        }, 2000);
-      }, 1000);
-    } else {
-      setLines(prev => [...prev,
-        { type: 'output', content: '' },
-        { type: 'error', content: '  ❌ Incorrect. The system remains intact.' },
-        { type: 'output', content: '  (Nice try though.)' },
-        { type: 'output', content: '' },
-      ]);
-    }
-  };
-
   const executeCommand = useCallback((cmdStr: string) => {
     const trimmed = cmdStr.trim();
     if (!trimmed) return;
-
-    // Intercept secret word check
-    if (awaitingSecretWord) {
-      setHistory(prev => [...prev, trimmed]);
-      setHistoryIdx(-1);
-      setLines(prev => [...prev, { type: 'input', content: trimmed }]);
-      // Run as secret word check
-      handleSecretWord(trimmed);
-      setInput('');
-      return;
-    }
 
     setHistory(prev => [...prev, trimmed]);
     setHistoryIdx(-1);
@@ -404,8 +362,8 @@ export default function Terminal({ windowId: _windowId }: Props) {
         combined.push({ type: 'output', content: '' });
         combined.push({ type: 'ascii', content: ' '.repeat(30) + colors.map(c => `\x1b[48;2;${hexToRgb(c)}m   \x1b[0m`).join('') });
 
-        // Add all at once — no typing animation (typing effect causes white flash)
-        setLines(prev => [...prev, ...combined]);
+        setTypingEffect(true);
+        setTypingLines(combined);
         break;
       }
 
@@ -631,25 +589,10 @@ export default function Terminal({ windowId: _windowId }: Props) {
         break;
       }
 
-      case 'sudo': {
-        if (args[1] === 'rm' && args[2] === '-rf' && args[3] === '/') {
-          setAwaitingSecretWord(true);
-          addOutputs(['', '  ⚠️ WARNING: This will destroy the entire filesystem.', '', '  What\'s the secret word?']);
-          // Next input will be checked as the secret word
-          return;
-        } else if (args[1] === 'rm') {
-          addOutput('rm: cannot remove \'/\': Permission denied');
-        } else {
-          addOutput(`sudo: ${args.slice(1).join(' ')}: command requires root privileges`);
-          addOutput('This incident has been logged. 📋');
-        }
-        break;
-      }
-
       default:
         addOutput(`${cmd}: command not found. Type 'help' for available commands.`, 'error');
     }
-  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath, awaitingSecretWord]);
+  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showMatrix || showHtop) {
@@ -684,7 +627,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
     }
   };
 
-  const prompt = awaitingSecretWord ? 'secret word > ' : `user@axier:${getDirName(currentDir)}$`;
+  const prompt = `user@axier:${getDirName(currentDir)}$`;
 
   return (
     <div
@@ -698,7 +641,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
       onClick={() => inputRef.current?.focus()}
     >
       {/* Terminal output */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-2" style={{ wordBreak: 'break-word' }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2">
         {/* Welcome message */}
         {lines.length === 0 && (
           <div className="mb-2 opacity-60">
@@ -708,7 +651,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
         )}
 
         {lines.map((line, idx) => (
-          <div key={idx} className="whitespace-pre leading-tight overflow-hidden"
+          <div key={idx} className="whitespace-pre-wrap break-all leading-tight"
             style={{
               color: line.type === 'error' ? termTheme.red :
                 line.type === 'ascii' ? termTheme.cyan :
