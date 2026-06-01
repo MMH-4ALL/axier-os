@@ -61,7 +61,7 @@ function makeFiglet(text: string): string[] {
 }
 
 export default function Terminal({ windowId: _windowId }: Props) {
-  const { state, dispatch, currentTheme, sendNotification } = useOS();
+  const { state, dispatch, currentTheme, sendNotification, setNoBootScreen } = useOS();
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -73,6 +73,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
   const [cmatrixChars, setCmatrixChars] = useState<{ x: number; y: number; char: string; speed: number }[]>([]);
   const [typingEffect, setTypingEffect] = useState(false);
   const [typingLines, setTypingLines] = useState<TerminalLine[]>([]);
+  const [awaitingSecretWord, setAwaitingSecretWord] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -185,9 +186,50 @@ export default function Terminal({ windowId: _windowId }: Props) {
     return found?.id || null;
   };
 
+  const handleSecretWord = (word: string) => {
+    setAwaitingSecretWord(false);
+    if (word.toLowerCase() === 'please!') {
+      setLines(prev => [...prev, { type: 'output', content: '' }]);
+      setTimeout(() => {
+        setLines(prev => [...prev,
+          { type: 'error', content: '  [██████████████████████████████] 100%' },
+          { type: 'output', content: '' },
+          { type: 'error', content: '  Deleting /bin...' },
+          { type: 'error', content: '  Deleting /usr...' },
+          { type: 'error', content: '  Deleting /home...' },
+          { type: 'error', content: '  Deleting /etc/passwd...' },
+          { type: 'error', content: '  Deleting everything...' },
+          { type: 'output', content: '  ...' },
+        ]);
+        setTimeout(() => {
+          setNoBootScreen(true);
+          sendNotification('SYSTEM FAILURE', 'No boot device found.', 'error');
+        }, 2000);
+      }, 1000);
+    } else {
+      setLines(prev => [...prev,
+        { type: 'output', content: '' },
+        { type: 'error', content: '  ❌ Incorrect. The system remains intact.' },
+        { type: 'output', content: '  (Nice try though.)' },
+        { type: 'output', content: '' },
+      ]);
+    }
+  };
+
   const executeCommand = useCallback((cmdStr: string) => {
     const trimmed = cmdStr.trim();
     if (!trimmed) return;
+
+    // Intercept secret word check
+    if (awaitingSecretWord) {
+      setHistory(prev => [...prev, trimmed]);
+      setHistoryIdx(-1);
+      setLines(prev => [...prev, { type: 'input', content: trimmed }]);
+      // Run as secret word check
+      handleSecretWord(trimmed);
+      setInput('');
+      return;
+    }
 
     setHistory(prev => [...prev, trimmed]);
     setHistoryIdx(-1);
@@ -362,8 +404,8 @@ export default function Terminal({ windowId: _windowId }: Props) {
         combined.push({ type: 'output', content: '' });
         combined.push({ type: 'ascii', content: ' '.repeat(30) + colors.map(c => `\x1b[48;2;${hexToRgb(c)}m   \x1b[0m`).join('') });
 
-        setTypingEffect(true);
-        setTypingLines(combined);
+        // Add all at once — no typing animation (typing effect causes white flash)
+        setLines(prev => [...prev, ...combined]);
         break;
       }
 
@@ -538,6 +580,195 @@ export default function Terminal({ windowId: _windowId }: Props) {
         break;
       }
 
+      // ======== ASCII ART GENERATOR ========
+      case 'asciiart': {
+        const text = args.slice(1).join(' ').toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+        if (!text) {
+          addOutput('Usage: asciiart <text>', 'error');
+          break;
+        }
+        // Block letter patterns (A-Z, 0-9, space)
+        const FONT: Record<string, string[]> = {
+          A: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          B: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          C: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          D: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          E: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          F: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          G: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          H: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          I: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          J: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          K: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          L: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          M: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          N: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          O: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          P: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          Q: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          R: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          S: [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          T: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          U: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          V: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          W: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          X: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          Y: ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          Z: ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '0': [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '1': ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '2': ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '3': ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '4': ['█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '5': ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '6': [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '7': ['█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█'],
+          '8': [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          '9': [' ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄ ','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█','█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█','█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█'],
+          ' ': [' ',' ',' ',' ',' '],
+        };
+        const lines = ['', '', '', '', ''];
+        for (const ch of text) {
+          const pat = FONT[ch] || FONT[' '];
+          for (let i = 0; i < 5; i++) lines[i] += pat[i] + ' ';
+        }
+        lines.forEach(l => addOutput(l, 'ascii'));
+        addOutput('');
+        break;
+      }
+
+      // ======== DOGE MEME GENERATOR ========
+      case 'doge': {
+        const customText = args.slice(1).join(' ');
+        const phrases = customText
+          ? customText.split(',')
+          : ['such wow', 'very cool', 'much terminal', 'so os', 'very fun', 'much easter egg'];
+        const dogeLines = [
+          '   ██╗    ██╗███████╗██╗      ██████╗ ██████╗ ███╗   ███╗███████╗',
+          '   ██║    ██║██╔════╝██║     ██╔════╝██╔═══██╗████╗ ████║██╔════╝',
+          '   ██║ █╗ ██║█████╗  ██║     ██║     ██║   ██║██╔████╔██║█████╗  ',
+          '   ██║███╗██║██╔══╝  ██║     ██║     ██║   ██║██║╚██╔╝██║██╔══╝  ',
+          '   ╚███╔███╔╝███████╗███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗',
+          '    ╚══╝╚══╝ ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝',
+        ];
+        dogeLines.forEach(l => addOutput(l, 'ascii'));
+        addOutput('');
+        phrases.forEach(phrase => {
+          const padded = phrase.padStart(20 + Math.floor(phrase.length / 2), ' ').padEnd(40, ' ');
+          addOutput(`   ${padded}`);
+        });
+        addOutput('');
+        addOutput('   wow');
+        break;
+      }
+
+      // ======== TEXT ADVENTURE ========
+      case 'play': {
+        if (args[1] !== 'adventure') {
+          addOutput(`Unknown subcommand. Try: play adventure`, 'error');
+          break;
+        }
+        const adventureState = { room: 'darkRoom', inventory: [] as string[], flags: {} as Record<string, boolean> };
+        const rooms: Record<string, () => void> = {
+          darkRoom: () => {
+            addOutputs([
+              '',
+              '  ╔════════════════════════════════════╗',
+              '  ║         THE DARK CHAMBER            ║',
+              '  ╚════════════════════════════════════╝',
+              '',
+              '  You are in a dark stone room. A single',
+              '  flickering candle sits on a wooden table.',
+              '  The only exit is a heavy door to the NORTH.',
+              '',
+              '  You can: look, take candle, go north',
+              '']);
+          },
+          library: () => {
+            addOutputs([
+              '',
+              '  ╔════════════════════════════════════╗',
+              '  ║            THE LIBRARY             ║',
+              '  ╚════════════════════════════════════╝',
+              '',
+              '  Towering bookshelves line every wall.',
+              '  Dust motes float in shafts of pale light.',
+              '  Exits: SOUTH (back) and EAST.',
+              '']);
+            if (!adventureState.flags['examinedBooks']) addOutput('  You can: look, examine books, go south, go east');
+            else addOutput('  A loose stone hints at a SECRET CHAMBER...');
+            addOutput('');
+          },
+          garden: () => {
+            addOutputs([
+              '',
+              '  ╔════════════════════════════════════╗',
+              '  ║           THE GARDEN                ║',
+              '  ╚════════════════════════════════════╝',
+              '',
+              '  Overgrown roses and ivy everywhere.',
+              '  A stone fountain bubbles in the center.',
+              '  A brass key glints at the bottom of the fountain!',
+              '  Exit: WEST (back)',
+              '']);
+            if (!adventureState.flags['hasKey']) addOutput('  You can: look, take key, go west');
+            else addOutput('  The fountain is now empty.');
+            addOutput('');
+          },
+          secretChamber: () => {
+            if (!adventureState.flags['chestOpened']) {
+              addOutputs([
+                '',
+                '  ╔════════════════════════════════════╗',
+                '  ║        THE SECRET CHAMBER          ║',
+                '  ╚════════════════════════════════════╝',
+                '',
+                '  A hidden room! In the center sits an',
+                '  ancient wooden chest bound in iron.',
+                '  It has a keyhole.',
+                '',
+              ]);
+            } else if (!adventureState.flags['hasTreasure']) {
+              addOutputs([
+                '',
+                '  ╔════════════════════════════════════╗',
+                '  ║        THE SECRET CHAMBER          ║',
+                '  ╚════════════════════════════════════╝',
+                '',
+                '  The chest lies open, revealing a',
+                '  magnificent golden amulet that glows!',
+                '',
+              ]);
+            } else {
+              addOutputs([
+                '',
+                '  ╔════════════════════════════════════╗',
+                '  ║        THE SECRET CHAMBER          ║',
+                '  ╚════════════════════════════════════╝',
+                '',
+                '  The amulet is yours. The chamber feels',
+                '  peaceful. You have won the adventure!',
+                '',
+                '  *** CONGRATULATIONS ***',
+                '',
+              ]);
+            }
+            addOutput('  You can: look, use key, take treasure, go west');
+            addOutput('');
+          },
+        };
+        const showRoom = () => {
+          const rm = rooms[adventureState.room];
+          if (rm) rm();
+        };
+        showRoom();
+        addOutput('  Commands: look | go <north/south/east/west> | take <item> | use <item> | inventory | examine <thing> | quit', 'ascii');
+        addOutput('');
+        // Intercept subsequent commands while in adventure mode
+        setLines(prev => [...prev, { type: 'output', content: '' }]);
+        break;
+      }
+
       case 'axier': {
         if (args[1] === '--power') {
           addOutputs([
@@ -589,10 +820,25 @@ export default function Terminal({ windowId: _windowId }: Props) {
         break;
       }
 
+      case 'sudo': {
+        if (args[1] === 'rm' && args[2] === '-rf' && args[3] === '/') {
+          setAwaitingSecretWord(true);
+          addOutputs(['', '  ⚠️ WARNING: This will destroy the entire filesystem.', '', '  What\'s the secret word?']);
+          // Next input will be checked as the secret word
+          return;
+        } else if (args[1] === 'rm') {
+          addOutput('rm: cannot remove \'/\': Permission denied');
+        } else {
+          addOutput(`sudo: ${args.slice(1).join(' ')}: command requires root privileges`);
+          addOutput('This incident has been logged. 📋');
+        }
+        break;
+      }
+
       default:
         addOutput(`${cmd}: command not found. Type 'help' for available commands.`, 'error');
     }
-  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath]);
+  }, [currentDir, state.fs, state.packages, state.secretThemeUnlocked, currentTheme, dispatch, sendNotification, resolvePath, awaitingSecretWord]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showMatrix || showHtop) {
@@ -627,7 +873,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
     }
   };
 
-  const prompt = `user@axier:${getDirName(currentDir)}$`;
+  const prompt = awaitingSecretWord ? 'secret word > ' : `user@axier:${getDirName(currentDir)}$`;
 
   return (
     <div
@@ -641,7 +887,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
       onClick={() => inputRef.current?.focus()}
     >
       {/* Terminal output */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-2" style={{ wordBreak: 'break-word' }}>
         {/* Welcome message */}
         {lines.length === 0 && (
           <div className="mb-2 opacity-60">
@@ -651,7 +897,7 @@ export default function Terminal({ windowId: _windowId }: Props) {
         )}
 
         {lines.map((line, idx) => (
-          <div key={idx} className="whitespace-pre-wrap break-all leading-tight"
+          <div key={idx} className="whitespace-pre leading-tight overflow-hidden"
             style={{
               color: line.type === 'error' ? termTheme.red :
                 line.type === 'ascii' ? termTheme.cyan :
