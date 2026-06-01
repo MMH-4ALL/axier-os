@@ -49,13 +49,13 @@ export default function Dock() {
             </div>
 
             {/* Icon */}
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
               style={{
                 background: hasWindow ? `${currentTheme.colors.primary}25` : `${currentTheme.colors.surfaceAlt}80`,
                 border: `1px solid ${hasWindow ? currentTheme.colors.primary + '40' : 'transparent'}`,
               }}
             >
-              <AppIcon appId={appId} color={hasWindow ? currentTheme.colors.primary : currentTheme.colors.text} size={20} />
+              <AppIcon appId={appId} color={hasWindow ? '#ffffff' : 'rgba(255,255,255,0.85)'} size={22} />
             </div>
 
             {/* Indicator dot */}
