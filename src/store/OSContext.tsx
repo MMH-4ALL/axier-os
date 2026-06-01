@@ -100,6 +100,7 @@ export interface OSState {
   spotlightQuery: string;
   virtualDesktops: VirtualDesktop[];
   activeDesktop: string;
+  visibleWidgets: Record<string, boolean>;
   calculatorOpen: boolean;
 }
 
@@ -145,6 +146,7 @@ type OSAction =
   | { type: 'ADD_VIRTUAL_DESKTOP'; desktop: VirtualDesktop }
   | { type: 'REMOVE_VIRTUAL_DESKTOP'; id: string }
   | { type: 'SWITCH_DESKTOP'; id: string }
+  | { type: 'TOGGLE_WIDGET'; widget: string }
   | { type: 'RENAME_VIRTUAL_DESKTOP'; id: string; name: string }
   | { type: 'TOGGLE_CALCULATOR' }
   | { type: 'RESTORE_WINDOWS'; windows: WindowState[] };
@@ -181,6 +183,7 @@ function loadSavedState(): Partial<OSState> {
     brightness: 100,
     virtualDesktops: DEFAULT_VIRTUAL_DESKTOPS,
     activeDesktop: 'desktop-1',
+    visibleWidgets: { weather: true, virtualDesktopBar: true },
   };
 }
 
@@ -213,6 +216,7 @@ function createInitialState(): OSState {
     spotlightQuery: '',
     virtualDesktops: saved.virtualDesktops as VirtualDesktop[] || DEFAULT_VIRTUAL_DESKTOPS,
     activeDesktop: saved.activeDesktop as string || 'desktop-1',
+    visibleWidgets: { weather: true, virtualDesktopBar: true },
     calculatorOpen: false,
   };
 }
@@ -443,6 +447,12 @@ function osReducer(state: OSState, action: OSAction): OSState {
       };
     case 'SWITCH_DESKTOP':
       return { ...state, activeDesktop: action.id };
+    case 'TOGGLE_WIDGET':
+      return {
+        ...state,
+        visibleWidgets: { ...state.visibleWidgets, [action.widget]: !state.visibleWidgets[action.widget] },
+      };
+
     case 'RENAME_VIRTUAL_DESKTOP':
       return {
         ...state,

@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 export default function VirtualDesktopBar() {
   const { state, dispatch } = useOS();
+  if (!state.visibleWidgets?.virtualDesktopBar) return null;
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 

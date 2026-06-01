@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useOS } from '@/store/OSContext';
 
 interface Weather {
   temp: number;
@@ -37,6 +38,8 @@ function getCondition(code: number): string {
 }
 
 export default function WeatherWidget() {
+  const { state } = useOS();
+  if (!state.visibleWidgets?.weather) return null;
   const [weather, setWeather] = useState<Weather | null>(null);
   const [loading, setLoading] = useState(true);
 

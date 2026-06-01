@@ -71,6 +71,18 @@ function AxierOS() {
         setSnakeOpen(true);
       }
 
+      // Toggle Weather: Alt+W
+      if (!meta && e.altKey && e.key === 'w') {
+        e.preventDefault();
+        dispatch({ type: 'TOGGLE_WIDGET', widget: 'weather' });
+      }
+
+      // Toggle Virtual Desktop Bar: Alt+D
+      if (!meta && e.altKey && e.key === 'd') {
+        e.preventDefault();
+        dispatch({ type: 'TOGGLE_WIDGET', widget: 'virtualDesktopBar' });
+      }
+
       // Volume keys
       if (e.key === 'AudioVolUp') {
         dispatch({ type: 'SET_VOLUME', volume: Math.min(100, state.volume + 5) });
