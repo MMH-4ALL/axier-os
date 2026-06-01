@@ -26,11 +26,9 @@ export default function NotificationCenter() {
           key={n.id}
           className="notif-enter rounded-lg p-3 cursor-pointer hover:brightness-110 transition-all"
           style={{
-            background: 'rgba(10, 10, 22, 0.56)',
-            backdropFilter: 'blur(32px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+            background: currentTheme.colors.surface,
+            border: `1px solid ${currentTheme.colors.border}`,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
           }}
           onClick={() => dispatch({ type: 'READ_NOTIFICATION', id: n.id })}
         >
