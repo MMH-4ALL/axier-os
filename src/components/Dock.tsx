@@ -55,7 +55,7 @@ export default function Dock() {
                 border: `1px solid ${hasWindow ? currentTheme.colors.primary + '40' : 'transparent'}`,
               }}
             >
-              <AppIcon appId={appId} color={hasWindow ? currentTheme.colors.primary : currentTheme.colors.textSecondary} size={20} />
+              <AppIcon appId={appId} color={hasWindow ? currentTheme.colors.primary : currentTheme.colors.text} size={20} />
             </div>
 
             {/* Indicator dot */}
