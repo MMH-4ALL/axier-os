@@ -103,6 +103,8 @@ export interface OSState {
   visibleWidgets: Record<string, boolean>;
   calculatorOpen: boolean;
   noBootScreen: boolean;
+  showNotifications: boolean;
+  appUnreadCounts: Record<string, number>;
 }
 
 type OSAction =
@@ -116,6 +118,7 @@ type OSAction =
   | { type: 'RESIZE_WINDOW'; windowId: string; size: { width: number; height: number } }
   | { type: 'SNAP_WINDOW'; windowId: string; edge: 'left' | 'right' | 'restore' }
   | { type: 'SET_VIEW'; view: DesktopView }
+  | { type: 'TOGGLE_NOTIFICATIONS' }
   | { type: 'ADD_NOTIFICATION'; notification: Notification }
   | { type: 'READ_NOTIFICATION'; id: string }
   | { type: 'DISMISS_NOTIFICATION'; id: string }
@@ -151,7 +154,10 @@ type OSAction =
   | { type: 'RENAME_VIRTUAL_DESKTOP'; id: string; name: string }
   | { type: 'TOGGLE_CALCULATOR' }
   | { type: 'RESTORE_WINDOWS'; windows: WindowState[] }
-  | { type: 'SET_NO_BOOT_SCREEN'; value: boolean };
+  | { type: 'SET_NO_BOOT_SCREEN'; value: boolean }
+  | { type: 'CLEAR_NO_BOOT_SCREEN' }
+  | { type: 'INCREMENT_APP_BADGE'; appId: string }
+  | { type: 'CLEAR_APP_BADGE'; appId: string };
 
 function loadSavedState(): Partial<OSState> {
   try {
@@ -219,8 +225,10 @@ function createInitialState(): OSState {
     virtualDesktops: saved.virtualDesktops as VirtualDesktop[] || DEFAULT_VIRTUAL_DESKTOPS,
     activeDesktop: saved.activeDesktop as string || 'desktop-1',
     visibleWidgets: { weather: true, virtualDesktopBar: true },
+    showNotifications: false,
     calculatorOpen: false,
     noBootScreen: false,
+    appUnreadCounts: {},
   };
 }
 
@@ -348,11 +356,18 @@ function osReducer(state: OSState, action: OSAction): OSState {
       };
     case 'SET_VIEW':
       return { ...state, view: action.view };
-    case 'ADD_NOTIFICATION':
+    case 'ADD_NOTIFICATION': {
+      const counts = { ...state.appUnreadCounts };
+      for (const app of APPS) counts[app.id] = (counts[app.id] || 0) + 1;
       return {
         ...state,
         notifications: [action.notification, ...state.notifications].slice(0, 50),
+        appUnreadCounts: counts,
+        showNotifications: true,
       };
+    }
+    case 'TOGGLE_NOTIFICATIONS':
+      return { ...state, showNotifications: !state.showNotifications };
     case 'READ_NOTIFICATION':
       return {
         ...state,
@@ -469,6 +484,18 @@ function osReducer(state: OSState, action: OSAction): OSState {
       return { ...state, windows: action.windows };
     case 'SET_NO_BOOT_SCREEN':
       return { ...state, noBootScreen: action.value };
+    case 'CLEAR_NO_BOOT_SCREEN':
+      return { ...state, noBootScreen: false };
+    case 'INCREMENT_APP_BADGE': {
+      const counts = { ...state.appUnreadCounts };
+      counts[action.appId] = (counts[action.appId] || 0) + 1;
+      return { ...state, appUnreadCounts: counts };
+    }
+    case 'CLEAR_APP_BADGE': {
+      const counts = { ...state.appUnreadCounts };
+      delete counts[action.appId];
+      return { ...state, appUnreadCounts: counts };
+    }
     default:
       return state;
   }
