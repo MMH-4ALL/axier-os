@@ -44,7 +44,13 @@ export default function Dock() {
             onClick={() => openApp(appId)}
           >
             {/* Tooltip */}
-            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 rounded-lg text-xs whitespace-nowrap pointer-events-none glass-menu">
+            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap pointer-events-none"
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                color: '#0f1117',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              }}
+            >
               {app.name}
             </div>
 
