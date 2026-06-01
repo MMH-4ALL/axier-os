@@ -105,7 +105,7 @@ function AxierOS() {
       {/* Overlays */}
       {state.view === 'desktop' && (
         <>
-          <SpotlightSearch />
+          {state.spotlightOpen && <SpotlightSearch />}
           {state.calculatorOpen && (
             <Calculator onClose={() => dispatch({ type: 'TOGGLE_CALCULATOR' })} />
           )}

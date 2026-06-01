@@ -13,6 +13,8 @@ interface Result {
 
 export default function SpotlightSearch() {
   const { state, dispatch, openApp, copyToClipboard } = useOS();
+
+  if (!state.spotlightOpen) return null;
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
