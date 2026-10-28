@@ -228,8 +228,8 @@ export const themes: Record<string, Theme> = {
 };
 
 export const wallpapers = [
-  { id: 'default-dark', name: 'Midnight Mountains', url: '/wallpapers/default-dark.jpg', category: 'dark' },
-  { id: 'default-light', name: 'Morning Light', url: '/wallpapers/default-light.jpg', category: 'light' },
+  { id: 'default-dark', name: 'Midnight Mountains', url: `${import.meta.env.BASE_URL}wallpapers/default-dark.jpg`, category: 'dark' },
+  { id: 'default-light', name: 'Morning Light', url: `${import.meta.env.BASE_URL}wallpapers/default-light.jpg`, category: 'light' },
   { id: 'solid-dark', name: 'Pure Dark', url: '', category: 'solid', color: '#0f1117' },
   { id: 'solid-nord', name: 'Nord Dark', url: '', category: 'solid', color: '#2e3440' },
   { id: 'solid-dracula', name: 'Dracula', url: '', category: 'solid', color: '#282a36' },
