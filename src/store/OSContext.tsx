@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import type { WindowState, AppDefinition, Notification, FileSystemNode, Package, Note, OSSettings, DesktopView } from '@/types';
 import { themes, wallpapers } from '@/themes';
+import { fitWindow } from '@/lib/window-geometry';
 
 export interface ClipboardItem {
   id: string;
@@ -202,11 +203,16 @@ const DEFAULT_VIRTUAL_DESKTOPS: VirtualDesktop[] = [
 
 function createInitialState(): OSState {
   const saved = loadSavedState();
+  const windows = Array.isArray(saved.windows) ? saved.windows.filter(w =>
+    w && typeof w.id === 'string' && APPS.some(app => app.id === w.appId) &&
+    Number.isFinite(w.zIndex) && Number.isFinite(w.position?.x) && Number.isFinite(w.position?.y) &&
+    Number.isFinite(w.size?.width) && w.size.width > 0 && Number.isFinite(w.size?.height) && w.size.height > 0
+  ).map(w => ({ ...w, ...fitWindow(w, { width: window.innerWidth, height: window.innerHeight }), isFocused: false })) : [];
   return {
     view: 'boot',
-    windows: saved.windows as OSState['windows'] || [],
+    windows,
     activeWindowId: null,
-    nextZIndex: 100,
+    nextZIndex: Math.max(100, ...windows.map(w => w.zIndex + 1)),
     notifications: [],
     fs: saved.fs as FileSystemNode[] || DEFAULT_FS,
     currentDir: 'user',
@@ -242,14 +248,13 @@ function osReducer(state: OSState, action: OSAction): OSState {
         return osReducer(state, { type: 'FOCUS_WINDOW', windowId: existing.id });
       }
       const offset = state.windows.length * 30;
-      const maxX = typeof window !== 'undefined' ? window.innerWidth - app.defaultSize.width - 100 : 100;
-      const maxY = typeof window !== 'undefined' ? window.innerHeight - app.defaultSize.height - 150 : 50;
+      const bounds = fitWindow({ position: { x: 80 + offset, y: 50 + offset }, size: app.defaultSize },
+        { width: window.innerWidth, height: window.innerHeight });
       const newWindow: WindowState = {
-        id: `win-${Date.now()}`,
+        id: `win-${crypto.randomUUID()}`,
         appId: app.id,
         title: app.name,
-        position: { x: 80 + Math.min(offset, maxX - 80), y: 50 + Math.min(offset, maxY - 50) },
-        size: { ...app.defaultSize },
+        ...bounds,
         isMinimized: false,
         isMaximized: false,
         isFocused: true,
@@ -536,7 +541,9 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       virtualDesktops: state.virtualDesktops,
       activeDesktop: state.activeDesktop,
     };
-    localStorage.setItem('axier-os-state', JSON.stringify(toSave));
+    try {
+      localStorage.setItem('axier-os-state', JSON.stringify(toSave));
+    } catch { /* Keep the desktop usable when browser storage is full or blocked. */ }
   }, [state.settings, state.fs, state.packages, state.notes, state.secretThemeUnlocked, state.windows, state.clipboard, state.volume, state.brightness, state.virtualDesktops, state.activeDesktop]);
 
   const openApp = useCallback((appId: string, data?: Record<string, unknown>) => {
@@ -564,7 +571,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard?.writeText(text).catch(() => {});
     dispatch({ type: 'COPY_TO_CLIPBOARD', text });
   }, []);
 

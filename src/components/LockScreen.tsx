@@ -1,5 +1,6 @@
 import { useOS } from '@/store/OSContext';
 import { useState, useEffect } from 'react';
+import { wallpapers } from '@/themes';
 
 export default function LockScreen() {
   const { state, dispatch } = useOS();
@@ -22,15 +23,16 @@ export default function LockScreen() {
     const onKey = () => handleUnlock();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const wallpaper = state.settings.wallpaper;
-  const wpData = wallpaper.startsWith('gradient') || wallpaper.startsWith('solid') ? null : { url: `/wallpapers/${wallpaper}.jpg` };
+  const wpData = wallpapers.find(item => item.id === wallpaper);
 
-  const bgStyle = wallpaper.startsWith('gradient')
-    ? { background: wallpaper }
-    : wpData
+  const bgStyle = wpData?.gradient
+    ? { background: wpData.gradient }
+    : wpData?.color
+    ? { background: wpData.color }
+    : wpData?.url
     ? { backgroundImage: `url(${wpData.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1030 50%, #0d1a2a 100%)' };
 

@@ -141,7 +141,7 @@ function AxierOS() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [dispatch, state.spotlightOpen, state.calculatorOpen, state.volume, state.noBootScreen, setNoBootScreen, commandPaletteOpen, clipboardManagerOpen]);
+  }, [dispatch, state.spotlightOpen, state.calculatorOpen, state.volume, state.noBootScreen, setNoBootScreen, commandPaletteOpen, clipboardManagerOpen, screenshotOpen]);
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-black relative select-none">

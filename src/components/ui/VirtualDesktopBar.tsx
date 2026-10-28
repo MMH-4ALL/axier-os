@@ -3,7 +3,6 @@ import { useState } from 'react';
 
 export default function VirtualDesktopBar() {
   const { state, dispatch } = useOS();
-  if (!state.visibleWidgets?.virtualDesktopBar) return null;
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -31,6 +30,7 @@ export default function VirtualDesktopBar() {
     setEditing(null);
   };
 
+  if (!state.visibleWidgets?.virtualDesktopBar) return null;
   return (
     <div
       className="fixed bottom-3 left-1/2 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-2xl"

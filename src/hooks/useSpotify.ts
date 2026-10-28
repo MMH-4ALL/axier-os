@@ -4,6 +4,7 @@ import {
   exchangeCodeForToken,
   getCurrentlyPlaying,
   pausePlayback,
+  resumePlayback,
   skipNext,
   skipPrevious,
   refreshAccessToken,
@@ -26,7 +27,7 @@ const STORAGE_KEY_REFRESH = 'spotify_refresh_token';
 const STORAGE_KEY_EXPIRY = 'spotify_token_expiry';
 
 function parseTrack(data: any): SpotifyTrack | null {
-  if (!data || !data.item) return null;
+  if (!data?.item?.album || !Array.isArray(data.item.artists)) return null;
   return {
     id: data.item.id,
     title: data.item.name,
@@ -40,17 +41,22 @@ function parseTrack(data: any): SpotifyTrack | null {
   };
 }
 
+function readStorage(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
 export default function useSpotify() {
-  const [accessToken, setAccessToken] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY_TOKEN));
-  const [refreshToken, setRefreshToken] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY_REFRESH));
+  const [accessToken, setAccessToken] = useState<string | null>(() => readStorage(STORAGE_KEY_TOKEN));
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => readStorage(STORAGE_KEY_REFRESH));
   const [expiry, setExpiry] = useState<number | null>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY_EXPIRY);
+    const stored = readStorage(STORAGE_KEY_EXPIRY);
     return stored ? parseInt(stored) : null;
   });
   const [track, setTrack] = useState<SpotifyTrack | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(!!localStorage.getItem(STORAGE_KEY_TOKEN));
-  const [isPremium, setIsPremium] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(!!readStorage(STORAGE_KEY_TOKEN));
+  const [canControl, setCanControl] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,9 +66,11 @@ export default function useSpotify() {
     const code = params.get('code');
     if (!code) return;
 
+    let active = true;
     setIsLoading(true);
     exchangeCodeForToken(code)
       .then(data => {
+        if (!active) return;
         const expiresAt = Date.now() + data.expires_in * 1000;
         localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
         localStorage.setItem(STORAGE_KEY_REFRESH, data.refresh_token);
@@ -74,53 +82,69 @@ export default function useSpotify() {
         // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
       })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+      .catch(() => { if (active) setError('Spotify sign-in failed. Disconnect and try connecting again.'); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
   }, []);
 
   // Auto-refresh token before expiry
   useEffect(() => {
     if (!refreshToken || !expiry) return;
-    const msUntilRefresh = expiry - Date.now() - 60_000; // 1 min before expiry
-    if (msUntilRefresh <= 0) return;
+    let active = true;
+    const msUntilRefresh = Math.max(0, expiry - Date.now() - 60_000);
 
     refreshTimer.current = setTimeout(async () => {
       try {
         const data = await refreshAccessToken(refreshToken);
+        if (!active) return;
         const newExpiry = Date.now() + data.expires_in * 1000;
         localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
         localStorage.setItem(STORAGE_KEY_EXPIRY, String(newExpiry));
         setAccessToken(data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem(STORAGE_KEY_REFRESH, data.refresh_token);
+          setRefreshToken(data.refresh_token);
+        }
         setExpiry(newExpiry);
       } catch {
-        logout();
+        if (active) logout();
       }
     }, msUntilRefresh);
 
-    return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
+    return () => { active = false; if (refreshTimer.current) clearTimeout(refreshTimer.current); };
   }, [refreshToken, expiry]);
 
-  // Poll currently playing
+  // Poll currently playing; keep only one request in flight.
   useEffect(() => {
     if (!accessToken) return;
 
+    let disposed = false;
+    let busy = false;
     const fetchTrack = async () => {
-      const data = await getCurrentlyPlaying(accessToken);
-      setTrack(data ? parseTrack(data) : null);
-      // Premium if device list has a non-restricted device
-      if (data && data.device) {
-        setIsPremium(data.device.type !== 'unknown');
-      }
+      if (busy) return;
+      busy = true;
+      try {
+        const data = await getCurrentlyPlaying(accessToken);
+        if (!disposed) {
+          setTrack(parseTrack(data));
+          setCanControl(data?.device?.is_restricted === false);
+          setError(null);
+        }
+      } catch (cause) {
+        if (!disposed) setError(cause instanceof Error ? cause.message : 'Could not check Spotify playback.');
+      } finally { busy = false; }
     };
 
     fetchTrack();
     pollTimer.current = setInterval(fetchTrack, 5000);
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
+    return () => { disposed = true; if (pollTimer.current) clearInterval(pollTimer.current); };
   }, [accessToken]);
 
   const login = async () => {
-    const url = await buildAuthUrl();
-    window.location.href = url;
+    try {
+      const url = await buildAuthUrl();
+      window.location.href = url;
+    } catch { setError('Spotify sign-in could not start. Allow site storage and retry.'); }
   };
 
   const logout = () => {
@@ -132,18 +156,32 @@ export default function useSpotify() {
     setExpiry(null);
     setTrack(null);
     setIsAuthed(false);
-    setIsPremium(false);
+    setCanControl(false);
+    setError(null);
   };
 
-  const pause = () => accessToken && pausePlayback(accessToken);
-  const next = () => accessToken && skipNext(accessToken);
-  const prev = () => accessToken && skipPrevious(accessToken);
+  const control = async (action: (token: string) => Promise<void>) => {
+    if (!accessToken) return;
+    try {
+      await action(accessToken);
+      const data = await getCurrentlyPlaying(accessToken);
+      setTrack(parseTrack(data));
+      setCanControl(data?.device?.is_restricted === false);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Spotify playback control failed.');
+    }
+  };
+  const pause = () => control(track?.isPlaying ? pausePlayback : resumePlayback);
+  const next = () => control(skipNext);
+  const prev = () => control(skipPrevious);
 
   return {
     track,
     isLoading,
     isAuthed,
-    isPremium,
+    canControl,
+    error,
     login,
     logout,
     pause,

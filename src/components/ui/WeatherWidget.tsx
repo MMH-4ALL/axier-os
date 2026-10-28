@@ -39,7 +39,6 @@ function getCondition(code: number): string {
 
 export default function WeatherWidget() {
   const { state } = useOS();
-  if (!state.visibleWidgets?.weather) return null;
   const [weather, setWeather] = useState<Weather | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +47,7 @@ export default function WeatherWidget() {
     const lat = 24.7136;
     const lon = 46.6753;
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('Weather unavailable'); return r.json(); })
       .then(data => {
         const c = data.current;
         setWeather({
@@ -63,15 +62,13 @@ export default function WeatherWidget() {
         setLoading(false);
       })
       .catch(() => {
-        setWeather({
-          temp: 42, condition: 'Hot', icon: '☀️', location: 'Riyadh',
-          humidity: 12, wind: 14, feels: 40,
-        });
+        setWeather(null);
         setLoading(false);
       });
   }, []);
 
-  if (loading) return null;
+  if (!state.visibleWidgets?.weather || loading) return null;
+  if (!weather) return <div className="fixed top-9 left-3 z-50 rounded-2xl bg-black/70 p-4 text-xs text-white/70" role="status">Riyadh weather is unavailable.</div>;
 
   return (
     <div

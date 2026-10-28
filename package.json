@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "axier-os",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -45,7 +46,6 @@
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
-    "my-app": "file:",
     "next-themes": "^0.4.6",
     "react": "^19.2.0",
     "react-day-picker": "^9.13.0",

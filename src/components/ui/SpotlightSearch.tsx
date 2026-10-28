@@ -14,7 +14,6 @@ interface Result {
 export default function SpotlightSearch() {
   const { state, dispatch, openApp, copyToClipboard } = useOS();
 
-  if (!state.spotlightOpen) return null;
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +92,7 @@ export default function SpotlightSearch() {
     app: 'App', file: 'File', setting: 'Setting', clipboard: 'Clipboard', calc: 'Tool',
   };
 
+  if (!state.spotlightOpen) return null;
   return (
     <>
       <div className="fixed inset-0 z-[90]" onClick={close} style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />

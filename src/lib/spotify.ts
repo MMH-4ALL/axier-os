@@ -37,7 +37,7 @@ export async function buildAuthUrl(): Promise<string> {
   return `https://accounts.spotify.com/authorize?${params}`;
 }
 
-export async function exchangeCodeForToken(code: string): Promise<{
+async function exchangeCodeOnce(code: string): Promise<{
   access_token: string;
   refresh_token: string;
   expires_in: number;
@@ -61,8 +61,16 @@ export async function exchangeCodeForToken(code: string): Promise<{
   return res.json();
 }
 
+// React StrictMode and multiple music windows must share a one-use OAuth exchange.
+let exchange: { code: string; promise: ReturnType<typeof exchangeCodeOnce> } | undefined;
+export function exchangeCodeForToken(code: string) {
+  if (!exchange || exchange.code !== code) exchange = { code, promise: exchangeCodeOnce(code) };
+  return exchange.promise;
+}
+
 export async function refreshAccessToken(refreshToken: string): Promise<{
   access_token: string;
+  refresh_token?: string;
   expires_in: number;
 }> {
   const body = new URLSearchParams({
@@ -82,30 +90,51 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
 }
 
 export async function getCurrentlyPlaying(accessToken: string) {
-  const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+  const res = await fetch('https://api.spotify.com/v1/me/player', {
     headers: { Authorization: 'Bearer ' + accessToken },
   });
-  if (res.status === 204 || res.status > 400) return null;
+  if (res.status === 204) return null;
+  checkPlaybackResponse(res);
   return res.json();
 }
 
 export async function pausePlayback(accessToken: string) {
-  await fetch('https://api.spotify.com/v1/me/player/pause', {
+  const response = await fetch('https://api.spotify.com/v1/me/player/pause', {
     method: 'PUT',
     headers: { Authorization: 'Bearer ' + accessToken },
   });
+  checkPlaybackResponse(response);
+}
+
+export async function resumePlayback(accessToken: string) {
+  const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + accessToken },
+  });
+  checkPlaybackResponse(response);
 }
 
 export async function skipNext(accessToken: string) {
-  await fetch('https://api.spotify.com/v1/me/player/next', {
+  const response = await fetch('https://api.spotify.com/v1/me/player/next', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + accessToken },
   });
+  checkPlaybackResponse(response);
 }
 
 export async function skipPrevious(accessToken: string) {
-  await fetch('https://api.spotify.com/v1/me/player/previous', {
+  const response = await fetch('https://api.spotify.com/v1/me/player/previous', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + accessToken },
   });
+  checkPlaybackResponse(response);
+}
+
+function checkPlaybackResponse(response: Response) {
+  if (response.ok) return;
+  if (response.status === 401) throw new Error('Spotify sign-in expired. Disconnect and reconnect Spotify.');
+  if (response.status === 403) throw new Error('Spotify refused playback control. Check your account and active device.');
+  if (response.status === 404) throw new Error('Open Spotify and start playback on an active device first.');
+  if (response.status === 429) throw new Error('Spotify is busy. Wait a little before trying again.');
+  throw new Error('Could not reach Spotify. Check your connection and try again.');
 }

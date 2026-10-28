@@ -145,7 +145,7 @@ export default function MusicPlayer({ windowId: _windowId }: Props) {
               <div className="w-full h-1 rounded-full overflow-hidden cursor-pointer"
                 style={{ background: currentTheme.colors.surfaceAlt }}>
                 <div className="h-full rounded-full transition-all"
-                  style={{ width: `${(t.progress / t.duration) * 100}%`, background: '#1DB954' }} />
+                  style={{ width: `${t.duration > 0 ? Math.min(100, t.progress / t.duration * 100) : 0}%`, background: '#1DB954' }} />
               </div>
               <div className="flex justify-between mt-0.5">
                 <span className="text-[9px] opacity-50">{formatTime(t.progress)}</span>
@@ -155,36 +155,37 @@ export default function MusicPlayer({ windowId: _windowId }: Props) {
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-5 py-1">
-              <button onClick={spotify.prev}
+              <button aria-label="Previous Spotify track" onClick={spotify.prev}
                 className="p-2 rounded-full hover:bg-white/10 transition-colors opacity-70 hover:opacity-100 disabled:opacity-30"
-                disabled={!spotify.isPremium}>
+                disabled={!spotify.canControl}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </button>
               <button
+                aria-label={t.isPlaying ? "Pause Spotify" : "Resume Spotify"}
                 onClick={spotify.pause}
                 className="w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-105 disabled:opacity-30"
                 style={{ background: '#1DB954' }}
-                disabled={!spotify.isPremium}>
+                disabled={!spotify.canControl}>
                 {t.isPlaying ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
                 ) : (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
                 )}
               </button>
-              <button onClick={spotify.next}
+              <button aria-label="Next Spotify track" onClick={spotify.next}
                 className="p-2 rounded-full hover:bg-white/10 transition-colors opacity-70 hover:opacity-100 disabled:opacity-30"
-                disabled={!spotify.isPremium}>
+                disabled={!spotify.canControl}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                 </svg>
               </button>
             </div>
 
-            {!spotify.isPremium && (
+            {!spotify.canControl && (
               <p className="text-[9px] text-center opacity-30 px-4 mb-1">
-                Playback control requires Spotify Premium
+                Open an active Spotify device. Playback control may require Premium.
               </p>
             )}
           </>
@@ -214,6 +215,7 @@ export default function MusicPlayer({ windowId: _windowId }: Props) {
 
   return (
     <div className="w-full h-full flex flex-col" style={{ background: currentTheme.colors.background, color: currentTheme.colors.text }}>
+      {spotify.error && <p role="alert" className="p-3 text-xs text-amber-200">{spotify.error}</p>}
       {/* Tab switcher */}
       <div className="flex border-b flex-shrink-0 gap-1 px-3 pt-2" style={{ borderColor: currentTheme.colors.border }}>
         <button
